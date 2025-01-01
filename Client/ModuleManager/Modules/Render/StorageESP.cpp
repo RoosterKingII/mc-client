@@ -11,22 +11,18 @@ void StorageESP::getBlocks(std::vector<Vec3<int>>& blocks) {
     LocalPlayer* localPlayer = mc.getLocalPlayer();
     if (!localPlayer) return;
 
-    // Convertir posición del jugador a coordenadas de chunk
     int playerChunkX = static_cast<int>(floor(localPlayer->getPosition()->x)) >> 4;
     int playerChunkZ = static_cast<int>(floor(localPlayer->getPosition()->z)) >> 4;
     int playerY = static_cast<int>(localPlayer->getPosition()->y);
-    
-    // Convertir radio a chunks
+
     int chunkRadius = (esese + 15) >> 4;
-    
-    // Iterar por chunks
+  
     for (int cx = -chunkRadius; cx <= chunkRadius; cx++) {
         for (int cz = -chunkRadius; cz <= chunkRadius; cz++) {
-            // Coordenadas base del chunk actual
+    
             int baseX = (playerChunkX + cx) << 4;
             int baseZ = (playerChunkZ + cz) << 4;
-            
-            // Iterar bloques dentro del chunk
+        
             for (int x = 0; x < 16; x++) {
                 for (int y = std::max(0, playerY - esese); 
                      y < std::min(256, playerY + esese); y++) {
@@ -42,7 +38,6 @@ void StorageESP::getBlocks(std::vector<Vec3<int>>& blocks) {
                         Block* block = localPlayer->dimension->blockSource->getBlock(blockPos);
                         if (!block) continue;
 
-                        // Verificar si es bloque de almacenamiento
                         if (block->blockLegacy->blockId == 54 ||   // Normal Chest
                             block->blockLegacy->blockId == 146 ||  // Trapped Chest
                             block->blockLegacy->blockId == 130 ||  // Ender Chest
