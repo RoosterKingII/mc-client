@@ -1,15 +1,11 @@
 #include "AnchorNeo.h"
 bool geyser2 = false;
-AnchorNeo::AnchorNeo() : Module("AnchorNeo", "NeoAura", Category::COMBAT) {
+AnchorNeo::AnchorNeo() : Module("OnkelAura", "AnchoAura", Category::COMBAT) {
 	addSlider<int>("Range", "NULL", ValueType::INT_T, &Neorange, 3, 10);
 	addBoolCheck("Self", "NULL", &silent);
-	addBoolCheck("JavaMode", "NULL", &geyser2);
 }
 
 AnchorNeo::~AnchorNeo() {
-}
-std::string AnchorNeo::getModName() {
-	return names;
 }
 
 static std::vector<Actor*> targetList;
@@ -85,6 +81,42 @@ static int getGS4() {
 	}
 	return slot;
 }//
+static bool glowstonePlaced = false; // Glowstone'un yerleþtirilip yerleþtirilmediðini kontrol eden bayrak
+
+static void tryGS(Vec3<int> tryBuildPos) {
+	LocalPlayer* localPlayer = mc.getLocalPlayer();
+	GameMode* gm = localPlayer->getGameMode();
+	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
+	Inventory* inv = plrInv->inventory;
+
+	Vec3<float> playerPos = *localPlayer->getPosition();
+	playerPos.y -= 1.f;
+	playerPos = playerPos.floor();
+
+	Block* block = localPlayer->dimension->blockSource->getBlock(tryBuildPos);
+	if (block->blockLegacy->blockId == 66063) {
+		int bestSlot = getGS4();
+		int oldSlot = plrInv->selectedSlot;
+		bool shouldSwitch = (bestSlot != plrInv->selectedSlot);
+		if (shouldSwitch) {
+			plrInv->selectedSlot = bestSlot;
+			MobEquipmentPacket pk(localPlayer->getRuntimeID(), inv->getItemStack(bestSlot), bestSlot, bestSlot);
+			mc.getClientInstance()->loopbackPacketSender->send(&pk);
+		}
+
+		// Glowstone sadece bir kez yerleþtirilmeli
+		if (!glowstonePlaced) {
+			PredictBlok(tryBuildPos.toFloat());  // Glowstone yerleþtir
+			gm->buildBlock(tryBuildPos, 66063, true);  // Glowstone'ý yerleþtir
+			glowstonePlaced = true; // Glowstone yerleþtirildi olarak iþaretle
+		}
+
+		if (shouldSwitch) {
+			plrInv->selectedSlot = oldSlot;
+		}
+	}
+}
+
 static void tryAc(Vec3<int> tryBuildPos) {
 	LocalPlayer* localPlayer = mc.getLocalPlayer();
 	GameMode* gm = localPlayer->getGameMode();
@@ -107,47 +139,16 @@ static void tryAc(Vec3<int> tryBuildPos) {
 			mc.getClientInstance()->loopbackPacketSender->send(&pk);
 		}
 
+		// Anchor'ý yerleþtir
 		PredictBlok(tryBuildPos.toFloat());
-		//gm->buildBlock(tryBuildPos, 0, 0);
-		//gm->buildBlock(tryBuildPos, 0, 0);
 
 		if (shouldSwitch) {
 			plrInv->selectedSlot = oldSlot;
 		}
+
+		glowstonePlaced = false; // Anchor yerleþtirildikten sonra Glowstone yerleþtirilmiþ olarak iþaretlenmez
 	}
 }
-static void tryGS(Vec3<int> tryBuildPos) {
-	LocalPlayer* localPlayer = mc.getLocalPlayer();
-	GameMode* gm = localPlayer->getGameMode();
-	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
-	Inventory* inv = plrInv->inventory;
-
-	Vec3<float> playerPos = *localPlayer->getPosition();
-	playerPos.y -= 1.f;
-	playerPos = playerPos.floor();
-
-	Block* block = localPlayer->dimension->blockSource->getBlock(tryBuildPos);
-	if (block->blockLegacy->blockId == 66063) {
-
-		int bestSlot = getGS4();
-		int oldSlot = plrInv->selectedSlot;
-		bool shouldSwitch = (bestSlot != plrInv->selectedSlot);
-		if (shouldSwitch) {
-			plrInv->selectedSlot = bestSlot;
-			MobEquipmentPacket pk(localPlayer->getRuntimeID(), inv->getItemStack(bestSlot), bestSlot, bestSlot);
-			mc.getClientInstance()->loopbackPacketSender->send(&pk);
-		}
-
-		PredictBlok(tryBuildPos.toFloat());
-		//gm->buildBlock(tryBuildPos, 0, 0);
-		if (shouldSwitch) {
-			plrInv->selectedSlot = oldSlot;
-		}
-	}
-}
-
-
-
 
 
 void AnchorNeo::onNormalTick(Actor* actor) {
@@ -155,6 +156,7 @@ void AnchorNeo::onNormalTick(Actor* actor) {
 		return;
 	if (!mc.canUseMoveKeys())
 		return;
+
 	LocalPlayer* localPlayer = mc.getLocalPlayer();
 	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
 	Inventory* inv = plrInv->inventory;
@@ -164,28 +166,42 @@ void AnchorNeo::onNormalTick(Actor* actor) {
 	targetList.clear();
 
 	for (Actor* actor : level->getRuntimeActorList()) {
-		if (TargetUtils::isTargetValid(actor, silent)) {
+		if (TargetUtils::isFriendValid(actor, silent)) {
 			float seenPercent = region->getSeenPercent(localPlayer->getEyePos(), *actor->getAABB());
 			float dist = actor->getPosition()->dist(*localPlayer->getPosition());
 			float rangeCheck = (seenPercent > 0.f) ? 7 : 7;
 			if (dist < rangeCheck) targetList.push_back(actor);
 		}
 	}
-	int place = 0;
 
 	if (!targetList.empty()) {
 		Vec3<float> enemyLoc = targetList[0]->getPosition()->floor().sub(Vec3<float>(0.f, 1.f, 0.f));
 		std::vector<Vec3<float>> positions = {
-	{ enemyLoc.x, enemyLoc.y, enemyLoc.z + 1 },
-	{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z + 1 },
-	{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z + 1 },
-	{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z - 1 },
-	{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z - 1 },
-			{ enemyLoc.x, enemyLoc.y, enemyLoc.z - 1 },
-			{ enemyLoc.x, enemyLoc.y, enemyLoc.z + 1 },
-			{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z },
-			{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z },
+			// Target'in çevresi: 3x3 alan
+			{ enemyLoc.x, enemyLoc.y - 1, enemyLoc.z }, // Altý
+			{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z }, // Sað
+			{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z }, // Sol
+			{ enemyLoc.x, enemyLoc.y, enemyLoc.z + 1 }, // Ýleri
+			{ enemyLoc.x, enemyLoc.y, enemyLoc.z - 1 }, // Geri
+			{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z + 1 }, // Sað-Ön
+			{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z + 1 }, // Sol-Ön
+			{ enemyLoc.x + 1, enemyLoc.y, enemyLoc.z - 1 }, // Sað-Arka
+			{ enemyLoc.x - 1, enemyLoc.y, enemyLoc.z - 1 }, // Sol-Arka
+			{ enemyLoc.x, enemyLoc.y + 2, enemyLoc.z }, // Kafanýn Üstü (y+2)
+
+			// Diðer pozisyonlar: 3x3 çevresel alan
+			{ enemyLoc.x + 2, enemyLoc.y, enemyLoc.z },  // Sað 2
+			{ enemyLoc.x - 2, enemyLoc.y, enemyLoc.z },  // Sol 2
+			{ enemyLoc.x, enemyLoc.y, enemyLoc.z + 2 },  // Ýleri 2
+			{ enemyLoc.x, enemyLoc.y, enemyLoc.z - 2 },  // Geri 2
+			{ enemyLoc.x + 2, enemyLoc.y, enemyLoc.z + 2 }, // Sað-Ön 2
+			{ enemyLoc.x - 2, enemyLoc.y, enemyLoc.z + 2 }, // Sol-Ön 2
+			{ enemyLoc.x + 2, enemyLoc.y, enemyLoc.z - 2 }, // Sað-Arka 2
+			{ enemyLoc.x - 2, enemyLoc.y, enemyLoc.z - 2 }, // Sol-Arka 2
+			{ enemyLoc.x, enemyLoc.y + 3, enemyLoc.z }, // Kafanýn Üstü 2
 		};
+
+		// Her pozisyonda iþlemi gerçekleþtir
 		for (auto& pos : positions) {
 			Block* block = localPlayer->dimension->blockSource->getBlock(pos.toInt());
 			if (!block || !block->blockLegacy)
@@ -195,24 +211,23 @@ void AnchorNeo::onNormalTick(Actor* actor) {
 					continue;
 				}
 			}
+
 			if (geyser2)
 				pos.x += -1;
 			else
-				pos.x += 0;
+				pos.x += -1;
+
 			auto rotationToPlacement = mc.getLocalPlayer()->stateVectorComponent->pos.CalcAngle(pos.toFloat());
 			rotAnglePlace = rotationToPlacement;
-			//getAnchor6();
+
+			// Anchor yerleþtirilmesi
 			if (getid(pos) == 0) {
-				tryAc(pos.toInt());
-				shit = true;
+				tryAc(pos.toInt());  // Anchor yerleþtir
 			}
-			if (shit) {
-				//getGS6();
+			// Glowstone yerleþtirilmesi ve patlatma
+			if (getid(pos) == 66063) {
 				tryGS(pos.toInt());
-				shit = false;
-			}
-			if (!shit) {
-				gm->buildBlock(pos.toInt(), 222, true);
+				gm->buildBlock(pos.toInt(), 222, true);  // Glowstone'ý patlat
 			}
 		}
 	}

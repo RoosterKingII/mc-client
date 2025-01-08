@@ -74,7 +74,7 @@ public:
 	CrystalPlacement(Vec3<int> blockPos, Actor* target) {
 		auto* lp = mc.getLocalPlayer();
 		placePos = blockPos;
-		auto crystalPos = blockPos.toFloat().add(0.f, 1.f, 0.f);
+		auto crystalPos = blockPos.toFloat().add(0.5f, 1.f, 0.5f);
 		TgDameTake = computeExplosionDamage(crystalPos, target);
 		LpDameTake = computeExplosionDamage(crystalPos, lp);
 		targetActor = target;
@@ -102,7 +102,7 @@ private:
 	std::vector<CrystalBreaker> breakList;
 	std::vector<Actor*> entityList;
 	std::vector<Actor*> targetList;
-	float highestID = -1;
+	int highestID = -1;
 	bool shouldChangeID = false;
 	bool Mob = false;
 	bool placerot = false;
@@ -113,7 +113,7 @@ private:
 	Vec2<float> rotAngleBreak{};
 	std::mutex breakListMutex;
 	std::mutex placeListMutex;
-	float Ticks = 20;
+	int Ticks = 20;
 public:
 	float targetRange = 12.f;
 
@@ -122,21 +122,27 @@ public:
 	float crystalRange = 3.f;
 	float minPlaceDame = 4.5f;
 	float maxPlaceDame = 6.f;
-	float multiPlace = 1;
-	float placeDelay = 1;
+	int multiPlace = 1;
+	int placeDelay = 1;
 
 	bool autoBreak = true;
 	float breakRange = 6.f;
 	float minBreakDame = 4.5f;
 	float maxBreakDame = 6.f;
-	float breakDelay = 2;
+	int breakDelay = 2;
 	bool idPredict = false;
-	float packets = 1;
-	float sendDelay = 1;
+	int packets = 1;
+	int sendDelay = 1;
 private:
-	float placeDelayTick = 0;
-	float breakDelayTick = 0;
-	float sendDelayTick = 0;
+	int placeDelayTick = 0;
+	int breakDelayTick = 0;
+	int sendDelayTick = 0;
+	void populateTargetList(LocalPlayer* localPlayer, Level* level);
+	void handleTargetDistance(LocalPlayer* localPlayer);
+	std::string formatNames(Actor* target);
+	void handleCrystalSwitching(PlayerInventory* plrInv);
+	void collectTargets(std::vector<Actor*>& targetList, Actor* localPlayer, float targetRange);
+	void handleCrystalActions(LocalPlayer* localPlayer, std::vector<Actor*>& targetList, bool autoPlace, bool autoBreak, bool idPredict);
 protected:
 	static bool sortEntityByDist(Actor* a1, Actor* a2);
 	static bool sortCrystalByTargetDame(CrystalStruct a1, CrystalStruct a2);
@@ -152,15 +158,17 @@ protected:
 public:
 	// private int prevCrystalsAmount, crystalSpeed, invTimer;
 	Actor* currenttarget = nullptr;
-	int prevCrystalsAmount = 1;
-	int crystalSpeed = 1;
-	int invTimer = 1;
+	int prevCrystalsAmount;
+	int crystalSpeed;
+	int invTimer;
 	bool Crystalcounter = false;
 	AutoCrystal();
+	//virtual void onRender(MinecraftUIRenderContext* renderCtx);
 	virtual std::string getModName() override;
 	virtual void onEnable() override;
 	virtual void onDisable() override;
 	virtual void onNormalTick(Actor* actor) override;
 	virtual void onSendPacket(Packet* packet, bool& shouldCancel) override;
 	//virtual void onRender(MinecraftUIRenderContext* renderCtx) override;
+	virtual void onImGuiRender(ImDrawList* d) override;
 };

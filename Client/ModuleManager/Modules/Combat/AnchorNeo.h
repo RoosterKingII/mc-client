@@ -9,6 +9,7 @@ private:
 	bool silent = false;
 	std::string names;
 	bool shit = false;
+	bool render = false;
 	//ground level  ~~~ funni initializations
 	Vec3<float> bottom1;
 	//middle level  ~ last priority because it is the least effective
@@ -23,7 +24,6 @@ public:
 	// Inherited via IModule
 	//void charge2(C_GameMode* gm, Vec3<float>* pos);
 	virtual void onNormalTick(Actor* actor) override;
-	virtual std::string getModName() override;
 	virtual void onRender(MinecraftUIRenderContext* renderCtx) override;
 	virtual void onSendPacket(Packet* packet, bool& shouldCancel) override;
 	virtual void onEnable() override;

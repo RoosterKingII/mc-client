@@ -1,25 +1,48 @@
 #include "AnchorAura.h"
 
-bool Geyser = false;
-AnchorAura::AnchorAura() : Module("AnchorAura", "Automatically places Anchor above players to destroy helmets or get them stuck", Category::COMBAT) {
+
+AnchorAura::AnchorAura() : Module("AnchorAura", "Give people PTSD from nuke even before WW3", Category::COMBAT) {
 	addSlider<int>("Range", "NULL", ValueType::INT_T, &range, 3, 10);
-	addSlider<int>("Adelay", "NULL", ValueType::INT_T, &anchordelay, 0, 10);
-	addSlider<int>("Gdelay", "NULL", ValueType::INT_T, &gsdelay, 0, 10);
-	addSlider<int>("Bdelay", "NULL", ValueType::INT_T, &breakdelay, 0, 10);
-	addBoolCheck("Silent", "NULL", &airplace);
-	addBoolCheck("JavaMode", "NULL", &Geyser);
+	this->addBoolCheck("Mob", "NULL", &this->silent);
 }
-AnchorAura::~AnchorAura() {
+static int getid(Vec3<float> pos) {
+	int id = 0;
+	LocalPlayer* localPlayer = mc.getLocalPlayer();
+	Block* block = localPlayer->dimension->blockSource->getBlock(pos.toInt());
+
+	id = block->blockLegacy->blockId;
+	return id;
 }
-std::string AnchorAura::getModName() {
-	return names;
+static std::vector<Actor*> targetList;
 
-}
+static void PredictBlok(Vec3<float> pos) {
+	GameMode* gm = mc.getGameMode();
+	static std::vector<Vec3<float>> blocks;
 
-static std::vector<Actor*> targetLis2;
+	// Hedefin çevresine blok yerleþtirme iþlemleri için gerekli olan yerler
+	Vec3<float> bottom = pos.add(0, -1, 0);      // Hedefin altý (Y - 1)
+	Vec3<float> headTop = pos.add(0, 2, 0);      // Hedefin kafasýnýn üstü (Y + 2)
 
-void AnchorAura::onEnable() {
-	targetLis2.clear();
+	Vec3<float> left = pos.add(-1, 0, 0);        // Hedefin sol yaný (X - 1)
+	Vec3<float> right = pos.add(1, 0, 0);        // Hedefin sað yaný (X + 1)
+	Vec3<float> front = pos.add(0, 0, -1);       // Hedefin ön yaný (Z - 1)
+	Vec3<float> back = pos.add(0, 0, 1);         // Hedefin arka yaný (Z + 1)
+
+	// Üst yanlar (X±1, Z±1, Y+1)
+	Vec3<float> topLeft = pos.add(-1, 1, 0);     // X - 1, Y + 1, Z
+	Vec3<float> topRight = pos.add(1, 1, 0);     // X + 1, Y + 1, Z
+	Vec3<float> topFront = pos.add(0, 1, -1);    // X, Y + 1, Z - 1
+	Vec3<float> topBack = pos.add(0, 1, 1);      // X, Y + 1, Z + 1
+
+	// Alt ve yan yerlerde blok yerleþtirme iþlemleri
+	std::vector<Vec3<float>> blockPositions = { bottom, headTop, left, right, front, back, topLeft, topRight, topFront, topBack };
+
+	// Blok yerleþtirme iþlemi
+	for (const Vec3<float>& blockPos : blockPositions) {
+		if (gm->tryPlaceBlock(Vec3<int>(blockPos.x, blockPos.y, blockPos.z))) {
+			return;
+		}
+	}
 }
 
 static int getAnchor() {
@@ -36,43 +59,8 @@ static int getAnchor() {
 	}
 	return slot;
 }//
-void getGS2() {
-	auto supplies = mc.getLocalPlayer()->getPlayerInventory();
-	auto inv = supplies->inventory;  // g_Data.getLocalPlayer()->getSupplies()->inventory->getItemStack(g_Data.getLocalPlayer()->getSupplies())->getItem()->itemID
 
-	for (int i = 0; i < 9; i++) {
-		ItemStack* itemStack = inv->getItemStack(i);
-		if (itemStack->isValid()) {
-			if (itemStack->getItemPtr()->itemId == 89) {
-				supplies->selectedSlot = i;
-				return;
-			}
-		}
-	}
-}
-void getAnchor2() {
-	auto supplies = mc.getLocalPlayer()->getPlayerInventory();
-	auto inv = supplies->inventory;  // g_Data.getLocalPlayer()->getSupplies()->inventory->getItemStack(g_Data.getLocalPlayer()->getSupplies())->getItem()->itemID
-	/*
-		for (int n = 0; n < 9; n++) {
-			C_ItemStack* stack = inv->getItemStack(n);
-			if (stack->item != nullptr) {
-				if (stack->getItem()->itemId == 89) {  // select anchor
-					supplies->selectedHotbarSlot = n;
-					return;
-				}
-			}
-		}*/
-	for (int i = 0; i < 9; i++) {
-		ItemStack* itemStack = inv->getItemStack(i);
-		if (itemStack->isValid()) {
-			if (itemStack->getItemPtr()->itemId == 65264) {
-				supplies->selectedSlot = i;
-				return;
-			}
-		}
-	}
-}
+
 static int getGS() {
 	PlayerInventory* plrInv = mc.getLocalPlayer()->getPlayerInventory();
 	Inventory* inv = plrInv->inventory;
@@ -86,40 +74,8 @@ static int getGS() {
 		}
 	}
 	return slot;
-}//
-
-static void predictBlock(Vec3<float> pos) {
-	GameMode* gm = mc.getGameMode();
-	static std::vector<Vec3<float>> blocks;
-
-	if (blocks.empty()) {
-		for (int y = -2; y <= 2; y++) {
-			for (int x = -5; x <= 5; x++) {
-				for (int z = -5; z <= 5; z++) {
-					blocks.emplace_back(Vec3<float>(x, y, z));
-				}
-			}
-		}
-
-		std::ranges::sort(blocks, {}, &Math::calculateDistance);
-	}
-
-	auto tryPlaceBlock = [&](const Vec3<float>& offset) {
-		Vec3<float> currentBlock = (Vec3<float>(pos.floor())).add(offset);
-		if (gm->tryPlaceBlock(currentBlock.toInt())) {
-			return true;
-		}
-		return false;
-		};
-
-	for (const Vec3<float>& offset : blocks) {
-		if (tryPlaceBlock(offset)) {
-			return;
-		}
-	}
 }
-
-static void tryAnchorCool(Vec3<int> tryBuildPos) {
+static void tryAc(Vec3<int> tryBuildPos) {
 	LocalPlayer* localPlayer = mc.getLocalPlayer();
 	GameMode* gm = localPlayer->getGameMode();
 	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
@@ -141,14 +97,16 @@ static void tryAnchorCool(Vec3<int> tryBuildPos) {
 			mc.getClientInstance()->loopbackPacketSender->send(&pk);
 		}
 
-		predictBlock(tryBuildPos.toFloat());
+		PredictBlok(tryBuildPos.toFloat());
+		//gm->buildBlock(tryBuildPos, 0, 0);
+		//gm->buildBlock(tryBuildPos, 0, 0);
 
 		if (shouldSwitch) {
 			plrInv->selectedSlot = oldSlot;
 		}
 	}
 }
-static void tryGSCool(Vec3<int> tryBuildPos) {
+static void tryGS(Vec3<int> tryBuildPos) {
 	LocalPlayer* localPlayer = mc.getLocalPlayer();
 	GameMode* gm = localPlayer->getGameMode();
 	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
@@ -170,63 +128,13 @@ static void tryGSCool(Vec3<int> tryBuildPos) {
 			mc.getClientInstance()->loopbackPacketSender->send(&pk);
 		}
 
-		//predictBlock(tryBuildPos.toFloat());
-		gm->buildBlock(tryBuildPos, 0, 0);
-
+		PredictBlok(tryBuildPos.toFloat());
+		//gm->buildBlock(tryBuildPos, 0, 0);
 		if (shouldSwitch) {
 			plrInv->selectedSlot = oldSlot;
 		}
 	}
 }
-static void tryBreak(Vec3<int> tryBuildPos) {
-	LocalPlayer* localPlayer = mc.getLocalPlayer();
-	GameMode* gm = localPlayer->getGameMode();
-	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
-	Inventory* inv = plrInv->inventory;
-
-	Vec3<float> playerPos = *localPlayer->getPosition();
-	playerPos.y -= 1.f;
-	playerPos = playerPos.floor();
-
-	Block* block = localPlayer->dimension->blockSource->getBlock(tryBuildPos);
-	if (block->blockLegacy->blockId == 66063) {
-
-		int bestSlot = getAnchor();
-		int oldSlot = plrInv->selectedSlot;
-		bool shouldSwitch = (bestSlot != plrInv->selectedSlot);
-		if (shouldSwitch) {
-			plrInv->selectedSlot = bestSlot;
-			MobEquipmentPacket pk(localPlayer->getRuntimeID(), inv->getItemStack(bestSlot), bestSlot, bestSlot);
-			mc.getClientInstance()->loopbackPacketSender->send(&pk);
-		}
-
-		//predictBlock(tryBuildPos.toFloat());
-		gm->buildBlock(tryBuildPos, 0, 0);
-
-		if (shouldSwitch) {
-			plrInv->selectedSlot = oldSlot;
-		}
-	}
-}
-
-/*void charge2(Vec3<float> gsplace) {
-	gsplace = gsplace.floor();
-
-	C_Block* block = mc.getLocalPlayer()->region->getBlock(Vec3<float>(gsplace));
-	C_BlockLegacy* blockLegacy = (block->blockLegacy);
-	if (blockLegacy->material->isReplaceable) {
-		Vec3<float> blok(gsplace);
-		int i = 0;
-			mc.getCGameMode()->buildBlock(&blok, i);  // place on face with respawn anchor
-			return;
-	}
-	return;
-}*/
-
-
-
-
-
 void AnchorAura::onNormalTick(Actor* actor) {
 	if (mc.getLocalPlayer() == nullptr)
 		return;
@@ -238,156 +146,57 @@ void AnchorAura::onNormalTick(Actor* actor) {
 	GameMode* gm = mc.getGameMode();
 	BlockSource* region = localPlayer->dimension->blockSource;
 	Level* level = localPlayer->getLevel();
-	targetLis2.clear();
+	targetList.clear();
 
 	for (Actor* actor : level->getRuntimeActorList()) {
-		if (TargetUtils::isTargetValid(actor, airplace)) {
+		if (TargetUtils::isFriendValid(actor, silent)) {
 			float seenPercent = region->getSeenPercent(localPlayer->getEyePos(), *actor->getAABB());
 			float dist = actor->getPosition()->dist(*localPlayer->getPosition());
 			float rangeCheck = (seenPercent > 0.f) ? 7 : 7;
-			if (dist < rangeCheck) targetLis2.push_back(actor);
+			if (dist < rangeCheck) targetList.push_back(actor);
 		}
 	}
 	int place = 0;
 
-	if (!targetLis2.empty()) {
-		Vec3<float> enemyLoc = *targetLis2[0]->getPosition();
-		auto rotationToPlacement = mc.getLocalPlayer()->stateVectorComponent->pos.CalcAngle(enemyLoc.toFloat());
-		rotAnglePlace = rotationToPlacement;
-		if (Geyser)
-			bottom1 = enemyLoc.add(-1, 1, 0);
-		else
-			bottom1 = enemyLoc.add(0, 1, 0);
-		if (!hasPlacedAnchor) {
-			// NOT placed anchor
-			if (!takenAnchor) {
-				if (airplace)
-					getAnchor2();
-				takenAnchor = true;
-				return;
-			}
-
-			Block* block = localPlayer->dimension->blockSource->getBlock(bottom1.toInt());
-			if (block->blockLegacy->blockId == 0) {
-				for (auto& i : targetLis2)
-					if (airplace)
-						//placeBlok2(bottom1);
-						gm->buildBlock(Vec3<float>(bottom1).toInt(), 0, 0);
-				//gm->buildBlock(Vec3<float>(bottom1).toInt(), 0,0);
-					else
-						//tryAnchor(Vec3<float>(bottom1).toInt());
-
-						tryAnchorCool(Vec3<float>(bottom1).toInt());
-				Option = 1;
-			}
-			hasPlacedAnchor = true;
-			//clientMessageF("Placed anchor!");
-		}
-
-		if (tickTimer >= anchordelay && !DhasPlacedAnchor) {
-			tickTimer = 0;
-			DhasPlacedAnchor = true;
-		}
-		else if (tickTimer < anchordelay && !DhasPlacedAnchor) {
-			tickTimer++;
-			return;
-		}
-
-		if (!hasCharged) {
-			if (!takenGS) {
-				if (airplace)
-					getGS2();
-				takenGS = true;
-				return;
-			}
-
-			switch (Option) {
-			case 1:
-				Block * block2 = localPlayer->dimension->blockSource->getBlock(bottom1.toInt());
-				int sb = block2->blockLegacy->blockId;
-				//mc.DisplayClientMessage("%d", sb);
-				if (block2->blockLegacy->blockId == 66063) {
-					if (airplace)
-						//placeBlok2(bottom1);
-						gm->buildBlock(Vec3<float>(bottom1).toInt(), 0, 0);
-					//gm->buildBlock(Vec3<float>(bottom1).toInt(), 0,0);
-					else
-						//tryAnchor(Vec3<float>(bottom1).toInt());
-
-						tryGSCool(Vec3<float>(bottom1).toInt());
+	if (!targetList.empty()) {
+		Vec3<float> enemyLoc = targetList[0]->getPosition()->floor().sub(Vec3<float>(0.f, 1.f, 0.f));
+		std::vector<Vec3<float>> positions = {
+	{ enemyLoc } };
+		for (auto& pos : positions) {
+			Block* block = localPlayer->dimension->blockSource->getBlock(pos.toInt());
+			if (!block || !block->blockLegacy)
+				continue;
+			if (block->blockLegacy->blockId != 0) {
+				if (block->blockLegacy->blockId != 66063) {
+					continue;
 				}
-				break;
 			}
-
-			hasCharged = true;
-			takenAnchor = false;
-			//clientMessageF("Charging!");
-		}
-
-		if (tickTimer >= gsdelay && !DhasCharged) {
-			tickTimer = 0;
-			DhasCharged = true;
-		}
-		else if (tickTimer < gsdelay && !DhasCharged) {
-			tickTimer++;
-			return;
-		}
-
-		if (!takenAnchor) {
-			if (airplace)
-				getAnchor2();
-			takenAnchor = true;
-			return;
-		}
-
-		if (!hasDetonated) {
-			switch (Option) {
-			case 1:
-				if (airplace)
-					//placeBlok2(bottom1);
-					gm->buildBlock(Vec3<float>(bottom1).toInt(), 0, 0);
-				//gm->buildBlock(Vec3<float>(bottom1).toInt(), 0,0);
-				else
-					//tryAnchor(Vec3<float>(bottom1).toInt());
-
-					tryBreak(Vec3<float>(bottom1).toInt());
-
-				//gm->buildBlock(&Vec3<float>(bottom1), 0);
-				break;
+			auto rotationToPlacement = mc.getLocalPlayer()->stateVectorComponent->pos.CalcAngle(pos.toFloat());
+			rotAnglePlace = rotationToPlacement;
+			//getAnchor6();
+			if (getid(pos) == 0) {
+				tryAc(pos.toInt());
+				shit = true;
 			}
-			hasDetonated = true;
+			if (shit) {
+				//getGS6();
+				tryGS(pos.toInt());
+				shit = false;
+			}
+			if (!shit) {
+				gm->buildBlock(pos.toInt(), 222, true);
+			}
 		}
-		//clientMessageF("Detonated!");
-
-		if (tickTimer >= breakdelay) {  // reset variables; prepare for another loop
-			hasPlacedAnchor = false;
-			hasCharged = false;
-			hasDetonated = false;
-			DhasPlacedAnchor = false;
-			DhasCharged = false;
-			tickTimer = 0;
-			takenAnchor = false;
-			takenGS = false;
-			return;
-		}
-		else {
-			tickTimer++;
-			return;
-		}
-
 	}
 }
-void AnchorAura::onRender(MinecraftUIRenderContext* renderCtx) {
+void AnchorAura::onRender(MinecraftUIRenderContext* renderCtx)
+{
 }
-
 void AnchorAura::onSendPacket(Packet* packet, bool& shouldCancel)
 {
-	if (packet->getId() == PacketID::PlayerAuthInput) {
-		auto* authPacket = reinterpret_cast<PlayerAuthInputPacket*>(packet);
-		authPacket->rotation = rotAnglePlace;
-		authPacket->headYaw = rotAnglePlace.y;
-	}
-}
 
-void AnchorAura::onDisable() {
+
+}
+void AnchorAura::onDisable()
+{
 }
