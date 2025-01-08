@@ -1,117 +1,118 @@
-#include "Surround.h"
+#include "shorelineselftrap.h"
 bool Placeabove = false;
 bool antiautocity = false;
-Surround::Surround() : Module("Surround", "Place blocks around you.", Category::PLAYER) {
-	addBoolCheck("Center", "NULL", &center);
-	addBoolCheck("DisableComplete", "NULL", &disableComplete);
-	addBoolCheck("AntiAutoCity", "NULL", &antiautocity);
-	addEnumSetting("Switch", "Only works for Obsidian", { "None", "Full", "Silent" }, &switchMode);
-	addBoolCheck("Render", "NULL", &render);
-	addColorPicker("Color", "NULL", &color);
-	addColorPicker("LineColor", "NULL", &lineColor);
-	addBoolCheck("Above place", "Place blocks above your head", &Placeabove);
+bool anticity = false;
+Shoreline::Shoreline() : Module("Selftrap", "Same as shoreline 1.19.4, might be buggy", Category::PLAYER) {
+    addBoolCheck("Center", "Centers the player before placing blocks.", &center);
+    addBoolCheck("DisableComplete", "Disables the module after surrounding you in obsidian.", &disableComplete);
+    addBoolCheck("AntiAutoCity", "NULL", &antiautocity);
+    addEnumSetting("Switch", "Only works for Obsidian", { "None", "Full", "Silent" }, &switchMode);
+    addBoolCheck("Render", "NULL", &render);
+    addColorPicker("Color", "NULL", &color);
+    addColorPicker("LineColor", "NULL", &lineColor);
+    addBoolCheck("Above place", "Place blocks above your head", &Placeabove);
+    addBoolCheck("Anti City", "java thing from blackout", &anticity);
+    addBoolCheck("Strict", "java thing from blackout", &anticity);
 }
-int Surround::getObsidian() {
-	PlayerInventory* plrInv = mc.getLocalPlayer()->getPlayerInventory();
-	Inventory* inv = plrInv->inventory;
-	int slot = plrInv->selectedSlot;
-	for (int i = 0; i < 9; i++) {
-		ItemStack* itemStack = inv->getItemStack(i);
-		if (itemStack->isValid()) {
-			if (itemStack->getItemPtr()->itemId == 49) {
-				return i;
-			}
-		}
-	}
-	return slot;
+int Shoreline::getObsidian() {
+    PlayerInventory* plrInv = mc.getLocalPlayer()->getPlayerInventory();
+    Inventory* inv = plrInv->inventory;
+    int slot = plrInv->selectedSlot;
+    for (int i = 0; i < 9; i++) {
+        ItemStack* itemStack = inv->getItemStack(i);
+        if (itemStack->isValid()) {
+            if (itemStack->getItemPtr()->itemId == 49) {
+                return i;
+            }
+        }
+    }
+    return slot;
 }
 #include <algorithm>
 #include <vector>
 #include <ranges>
 
-void Surround::predictBlock(Vec3<float> pos) {
-	GameMode* gm = mc.getGameMode();
-	static std::vector<Vec3<float>> blocks;
+void Shoreline::predictBlock(Vec3<float> pos) {
+    GameMode* gm = mc.getGameMode();
+    static std::vector<Vec3<float>> blocks;
 
-	if (blocks.empty()) {
-		for (int y = -5; y <= 3; y++) {
-			for (int x = -5; x <= 5; x++) {
-				for (int z = -5; z <= 5; z++) {
-					blocks.emplace_back(Vec3<float>(x, y, z));
-				}
-			}
-		}
+    if (blocks.empty()) {
+        for (int y = -5; y <= 3; y++) {
+            for (int x = -5; x <= 5; x++) {
+                for (int z = -5; z <= 5; z++) {
+                    blocks.emplace_back(Vec3<float>(x, y, z));
+                }
+            }
+        }
 
-		std::ranges::sort(blocks, {}, &Math::calculateDistance);
-	}
+        std::ranges::sort(blocks, {}, &Math::calculateDistance);
+    }
 
-	auto tryPlaceBlock = [&](const Vec3<float>& offset) {
-		Vec3<float> currentBlock = (Vec3<float>(pos.floor())).add(offset);
-		if (gm->tryPlaceBlock(currentBlock.toInt())) {
-			return true;
-		}
-		return false;
-		};
+    auto tryPlaceBlock = [&](const Vec3<float>& offset) {
+        Vec3<float> currentBlock = (Vec3<float>(pos.floor())).add(offset);
+        if (gm->tryPlaceBlock(currentBlock.toInt())) {
+            return true;
+        }
+        return false;
+        };
 
-	for (const Vec3<float>& offset : blocks) {
-		if (tryPlaceBlock(offset)) {
-			return;
-		}
-	}
+    for (const Vec3<float>& offset : blocks) {
+        if (tryPlaceBlock(offset)) {
+            return;
+        }
+    }
 }
 
 
-void Surround::tryBuildBlock(Vec3<int> tryBuildPos) {
-	LocalPlayer* localPlayer = mc.getLocalPlayer();
-	GameMode* gm = localPlayer->getGameMode();
-	PlayerInventory* plrInv = localPlayer->getPlayerInventory();
-	Inventory* inv = plrInv->inventory;
+void Shoreline::tryBuildBlock(Vec3<int> tryBuildPos) {
+    LocalPlayer* localPlayer = mc.getLocalPlayer();
+    GameMode* gm = localPlayer->getGameMode();
+    PlayerInventory* plrInv = localPlayer->getPlayerInventory();
+    Inventory* inv = plrInv->inventory;
 
-	Vec3<float> playerPos = *localPlayer->getPosition();
-	playerPos.y -= 1.f;
-	playerPos = playerPos.floor();
+    Vec3<float> playerPos = *localPlayer->getPosition();
+    playerPos.y -= 1.f;
+    playerPos = playerPos.floor();
 
-	Block* block = localPlayer->dimension->blockSource->getBlock(tryBuildPos);
-	if (block->blockLegacy->blockId == 0) {
+    Block* block = localPlayer->dimension->blockSource->getBlock(tryBuildPos);
+    if (block->blockLegacy->blockId == 0) {
 
-		int bestSlot = getObsidian();
-		int oldSlot = plrInv->selectedSlot;
-		bool shouldSwitch = (bestSlot != plrInv->selectedSlot);
-		if (shouldSwitch && (switchMode == 1 || switchMode == 2)) {
-			plrInv->selectedSlot = bestSlot;
-			if (switchMode == 2) {
-				MobEquipmentPacket pk(localPlayer->getRuntimeID(), inv->getItemStack(bestSlot), bestSlot, bestSlot);
-				mc.getClientInstance()->loopbackPacketSender->send(&pk);
-			}
-		}
-		InteractPacket inter(InteractAction::LEFT_CLICK, mc.getLocalPlayer()->getRuntimeID(), tryBuildPos.toFloat());
-		predictBlock(tryBuildPos.toFloat());
-		mc.getClientInstance()->loopbackPacketSender->sendToServer(&inter);
-		if (shouldSwitch && switchMode == 2) {
-			plrInv->selectedSlot = oldSlot;
-		}
-	}
+        int bestSlot = getObsidian();
+        int oldSlot = plrInv->selectedSlot;
+        bool shouldSwitch = (bestSlot != plrInv->selectedSlot);
+        if (shouldSwitch && (switchMode == 1 || switchMode == 2)) {
+            plrInv->selectedSlot = bestSlot;
+            if (switchMode == 2) {
+                MobEquipmentPacket pk(localPlayer->getRuntimeID(), inv->getItemStack(bestSlot), bestSlot, bestSlot);
+                mc.getClientInstance()->loopbackPacketSender->send(&pk);
+            }
+        }
+        InteractPacket inter(InteractAction::LEFT_CLICK, mc.getLocalPlayer()->getRuntimeID(), tryBuildPos.toFloat());
+        predictBlock(tryBuildPos.toFloat());
+        mc.getClientInstance()->loopbackPacketSender->sendToServer(&inter);
+        if (shouldSwitch && switchMode == 2) {
+            plrInv->selectedSlot = oldSlot;
+        }
+    }
 }
-Vec3<float> sideBlocks[13] = {
-    Vec3<float>(1, 0, 0), // Main place
+Vec3<float> sideBlocks[12] = {
+    Vec3<float>(1, 0, 0), //main place
     Vec3<float>(0, 0, 1),
     Vec3<float>(-1, 0, 0),
+    Vec3<float>(1, 1, 0), //main place
+    Vec3<float>(0, 1, 1),
+    Vec3<float>(-1, 1, 0),
     Vec3<float>(0, 0, -1),
-    Vec3<float>(1, -1, 0), // Lower place
+    Vec3<float>(1, -1, 0), //lower place
     Vec3<float>(0, -1, 1),
     Vec3<float>(-1, -1, 0),
     Vec3<float>(0, -1, -1),
-    Vec3<float>(0, -1, 0), // Below place
-    Vec3<float>(1, 1, 0), // Above place
-    Vec3<float>(0, 1, 1),
-    Vec3<float>(-1, 1, 0),
-    Vec3<float>(0, 1, -1),
+    Vec3<float>(0, -1, 0), //below place
 };
-
 
 std::vector<Vec3<int>> renderPositions;
 
-void Surround::onNormalTick(Actor* actor) {
+void Shoreline::onNormalTick(Actor* actor) {
 
     LocalPlayer* localPlayer = mc.getLocalPlayer();
     if (localPlayer == nullptr) return;
@@ -158,12 +159,13 @@ void Surround::onNormalTick(Actor* actor) {
         renderPositions.push_back(abovePos); // Store position for rendering
     }
 
+
     if (disableComplete) {
         this->setEnabled(false);
     }
 }
 
-void Surround::onRender(MinecraftUIRenderContext* ctx) {
+void Shoreline::onRender(MinecraftUIRenderContext* ctx) {
     LocalPlayer* localPlayer = mc.getLocalPlayer();
     if (localPlayer == nullptr) return;
 
@@ -207,7 +209,7 @@ void Surround::onRender(MinecraftUIRenderContext* ctx) {
     }
 }
 
-void Surround::onEnable() {
+void Shoreline::onEnable() {
     LocalPlayer* localPlayer = mc.getLocalPlayer();
     if (localPlayer == nullptr) return;
 
@@ -222,5 +224,3 @@ void Surround::onEnable() {
         localPlayer->setPos(yR);
     }
 }
-
-

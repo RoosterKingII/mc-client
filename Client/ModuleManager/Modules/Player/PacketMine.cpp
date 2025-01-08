@@ -12,6 +12,7 @@ PacketMine::PacketMine() : Module("PacketMine", "NULL", Category::PLAYER) {
 	addBoolCheck("Silent Back", "Switch back to old hotbar after silent switch", &silentBack);
 	addEnumSetting("Break Mode", "NULL", { "Auto", "Keybind" }, &breakMode);
 	addKeybindSetting("Break keybind", "NULL", &breakKeybind);
+	addBoolCheck("message", "message", &message);
 }
 Vec3<float> possrot;
 void PacketMine::setBreakPos(const Vec3<int>& bPos, uint8_t f) {
@@ -151,11 +152,12 @@ void PacketMine::onSendPacket(Packet* packet, bool& shouldCancel) {
 			movePacket->rotation = rots;
 			authPacket->headYaw = rots.y;
 			movePacket->headYaw = rots.y;
-			//char message2[256];  // Adjust the buffer size as needed
-			//sprintf(message2, "id  = ", rots);
-			//mc.DisplayClientMessage(message2);
+			if (message) {
+				char message2[256];  // Adjust the buffer size as needed
+				sprintf(message2, "id  = ", rots);
+				mc.DisplayClientMessage(message2);
+			}
 		}
-		 
 
 	}
 }
