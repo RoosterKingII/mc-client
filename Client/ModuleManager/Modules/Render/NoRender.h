@@ -10,6 +10,7 @@ public:
 	bool noParticles = false;
 	bool noSky = false;
 	bool NoHUD = false;
+	bool orender = false;
 	bool Noiteminhand = false;
 	bool NoTerrain = false;
 	bool NoMainMenuPaperdollAnimation = false;

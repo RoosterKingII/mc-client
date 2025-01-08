@@ -10,6 +10,6 @@ NoRender::NoRender() : Module("NoRender", "Stop certain animations & unrender ob
 	//addBoolCheck("menu Paperdoll", "Disable render menu thingi", &NoMainMenuPaperdollAnimation);
 	//addBoolCheck("MenuCube Map", "Disable render menu thingi", &NoMainMenuCubeMap);
 	addBoolCheck("Block Entities", "Disable render block entities.", &noBlockEntities);
-	addBoolCheck("Particles", "Disable render particles.", &noParticles);
+	addBoolCheck("Particles", "Disable render particles.", &orender);
 	addBoolCheck("HUD", "Disable render Hud.", &NoHUD);
 }

@@ -10,24 +10,26 @@ ESP::ESP() : Module("ESP", "ESP Enities.", Category::RENDER) {
 void ESP::onRender(MinecraftUIRenderContext* ctx) {
 	LocalPlayer* localPlayer = mc.getLocalPlayer();
 
+
+
 	if (localPlayer == nullptr) return;
 	if (!mc.canUseMoveKeys()) return;
 	Level* level = localPlayer->getLevel();
 	if (level == nullptr) return;
 	espList.clear();
-
+	Actor* actor{};
 	for (Actor* ent : level->getRuntimeActorList()) {
 		bool isValid = TargetUtils::isTargetValid(ent, mobs);
 		if (isValid) espList.push_back(ent);
 	}
-
-	for (Actor* ent : espList) {
-		switch (renderMode) {
-		case 0: {
-			AABB mobAABB = *ent->getAABB();
-			RenderUtils::drawBox(mobAABB, color, lineColor, .3f, true, false);
-;			break;
+			for (Actor* ent : espList) {
+				switch (renderMode) {
+				case 0: {
+					AABB mobAABB = *ent->getAABB();
+					RenderUtils::drawBox(mobAABB, color, lineColor, .3f, true, false);
+					;			break;
+				}
+				}
+			}
 		}
-		}
-	}
-}
+	

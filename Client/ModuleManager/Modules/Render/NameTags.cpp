@@ -24,6 +24,9 @@ void NameTags::onImGuiRender(ImDrawList* d) {
                 if (size > 2.f) size = 2.f;
                 std::string name = *actor->getNameTag();
                 name = Utils::sanitize(name);
+                // Agregar la distancia al nombre
+                name += " [" + std::to_string((int)dist) + "m]";
+
                 float textSize = 1.f * size;
                 float textWidth = ImGuiUtils::getTextWidth(name, textSize);
                 float textHeight = ImGuiUtils::getTextHeight(textSize);
@@ -65,6 +68,9 @@ void NameTags::onImGuiRender(ImDrawList* d) {
             if (size > 2.f) size = 2.f;
             std::string name = *mc.getLocalPlayer()->getNameTag();
             name = Utils::sanitize(name);
+   
+            name += " [" + std::to_string((int)dist) + "m]";
+
             float textSize = 1.f * size;
             float textWidth = ImGuiUtils::getTextWidth(name, textSize);
             float textHeight = ImGuiUtils::getTextHeight(textSize);

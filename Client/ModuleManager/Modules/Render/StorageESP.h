@@ -1,19 +1,23 @@
 #pragma once
 #include "../Module.h"
+#include "C:\Users\Admin\Desktop\nhackmcbe-master2\nhackmcbe-master\Boost\SDK\Classes\MinecraftUIRenderContext.h"
+#include <mutex>
+#include <vector>
+#include <chrono>
 
 class StorageESP : public Module {
-private:
 public:
-	float opacity = 255.f;
-	std::vector<Vec3<int>> blocks;
-	std::mutex listLock;
-	int mode;
-	bool fill = false;
-	bool box;
-	int esese = 20;
-	int radius = 20;
+    StorageESP();
+    void onRender(MinecraftUIRenderContext* renderCtx) override;
+    void getBlocks(std::vector<Vec3<int>>& blocks);
 
-	StorageESP();
-	void getBlocks(std::vector<Vec3<int>>& blocks);
-	virtual void onRender(MinecraftUIRenderContext* renderCtx);
+private:
+    std::chrono::steady_clock::time_point lastUpdateTime;
+    std::vector<Vec3<int>> blocks;
+    std::mutex listLock;
+    float opacity = 255.f;
+    int radius = 50;
+    int time = 1000;
+    bool line;
+    bool tracerEnabled;
 };
