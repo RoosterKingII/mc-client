@@ -13,6 +13,7 @@ void AutoSprint::onNormalTick(Actor* actor) {
     bool isMoving = mc.isKeyDown('W') || mc.isKeyDown('A') || mc.isKeyDown('S') || mc.isKeyDown('D');
     if (isMoving) {
         mc.getLocalPlayer()->setSprinting(true);
+        
     }
     else {
         mc.getLocalPlayer()->setSprinting(false);

@@ -1,6 +1,8 @@
+// Created by Tony on 2024-10-10 10:01:54
+
 #include "ElytraFly.h"
 static float Speedy = 4.0f;
-ElytraFly::ElytraFly() : Module("ElytraFly", "Fly with elytras.", Category::MOVEMENT) {
+ElytraFly::ElytraFly() : Module("ElytraFly", "Extend reach.", Category::MOVEMENT) {
     addSlider<float>("X-Axis", "NULL", ValueType::FLOAT_T, &Speed, 0.f, 20.f);
     addSlider<float>("Y-Axis", "NULL", ValueType::FLOAT_T, &Speedy, 0.f, 20.f);
 }

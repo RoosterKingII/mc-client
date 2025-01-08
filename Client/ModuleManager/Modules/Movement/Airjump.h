@@ -3,8 +3,12 @@
 
 class Airjump : public Module {
 private:
-public:
+    bool legacyMode = false;
+    float hasJumped = 0;
+    int tick = 0;
+    const int tickTimer = 2;
 
-	Airjump();
-	virtual void onNormalTick(Actor* actor) override;
+public:
+    Airjump();
+    virtual void onNormalTick(Actor* actor) override;
 };
