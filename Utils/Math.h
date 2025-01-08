@@ -20,6 +20,18 @@ struct Vec2 {
 		T arr[2];
 	};
 
+	Vec2<T> normalized() const {
+		float len = length();
+		return Vec2<T>(x / len, y / len);
+	}
+
+	T dot(const Vec2<T>& other) const {
+		return x * other.x + y * other.y;
+	}
+
+	T length() const {
+		return std::sqrt(x * x + y * y);
+	}
 	Vec2(T x = 0, T y = 0) {
 		this->x = x; this->y = y;
 	}
@@ -40,9 +52,21 @@ struct Vec2 {
 	ImVec2 toImVec2() {
 		return ImVec2((float)x, (float)y);
 	}
-
+	Vec2<T> lerp(const Vec2<T>& other, float t) const {
+		return Vec2(x + (other.x - x) * t, y + (other.y - y) * t);
+	}
 	Vec2<T> add(const Vec2<T>& v2) {
 		return Vec2<T>(this->x + v2.x, this->y + v2.y);
+	}
+	Vec2<T> clampLength(float min, float max) const {
+		float length = std::sqrt(x * x + y * y);
+		if (length < min) {
+			return *this * (min / length);
+		}
+		else if (length > max) {
+			return *this * (max / length);
+		}
+		return *this;
 	}
 
 	Vec2<T> add(T o) {
@@ -87,7 +111,18 @@ struct Vec3 {
 		};
 		T arr[3];
 	};
+	Vec3<T> normalized() const {
+		T len = length();
+		return Vec3<T>(x / len, y / len, z / len);
+	}
 
+	T dot(const Vec3<T>& other) const {
+		return x * other.x + y * other.y + z * other.z;
+	}
+
+	T length() const {
+		return std::sqrt(x * x + y * y + z * z);
+	}
 	Vec3<T>(T x = 0, T y = 0, T z = 0) {
 		this->x = x; this->y = y; this->z = z;
 	}
@@ -95,7 +130,6 @@ struct Vec3 {
 	Vec3<T>(const Vec3<T>& copy) {
 		this->x = copy.x; this->y = copy.y; this->z = copy.z;
 	}
-
 	bool operator != (const Vec3<T>& v3) {
 		return v3.x != x || v3.y != y || v3.z != z;
 	};
@@ -118,7 +152,16 @@ struct Vec3 {
 	Vec3<T> add(const Vec3<T>& v3) {
 		return Vec3<T>(x + v3.x, y + v3.y, z + v3.z);
 	}
-	
+	Vec3<T> addisex(const Vec3<T>& othe, const Vec3<T>& othe2, const Vec3<T>& othe3) const { // Tek argüman
+		return Vec3<T>(x + othe.x, y + othe2.y, z + othe3.z);
+	}
+
+
+	Vec3 norm() {
+		float length = std::sqrt(x * x + y * y + z * z);
+		return Vec3(x / length, y / length, z / length);
+	}
+
 	Vec3<T> mul(float a, float b, float c) {
 		return Vec3<T>(x * a, y * b, z * c);
 	}
@@ -152,7 +195,6 @@ struct Vec3 {
 	Vec3<float> toFloat() {
 		return Vec3<float>((float)x, (float)y, (float)z);
 	}
-
 	float dist(const Vec3<int>& e) {
 		return sub(e).magnitude();
 	}
@@ -161,13 +203,13 @@ struct Vec3 {
 		return sub(e).magnitude();
 	}
 
-	Vec3<T> lerp(const Vec3<float>& o, float val) {
-		Vec3<float> ne;
-		ne.x = x + val * (o->x - x);
-		ne.y = y + val * (o->y - y);
-		ne.z = z + val * (o->z - z);
+	Vec3<T> lerp(const Vec3<T>& o, float val) {
+		Vec3<T> ne;
+		ne.x = x + val * (o.x - x);  // 'o->x' yerine 'o.x' kullanmal?s?n?z
+		ne.y = y + val * (o.y - y);  // 'o->y' yerine 'o.y' kullanmal?s?n?z
+		ne.z = z + val * (o.z - z);  // 'o->z' yerine 'o.z' kullanmal?s?n?z
 		return ne;
-	};
+	}
 
 	Vec3<T> lerp(const Vec3<float>& o, float tx, float ty, float tz) {
 		Vec3<float> ne;
@@ -180,6 +222,7 @@ struct Vec3 {
 	float squaredlen() {
 		return x * x + y * y + z * z;
 	}
+	float magnitudexz() const { return sqrtf(x * x + z * z); }
 
 	float squaredxzlen() {
 		return x * x + z * z;
@@ -209,6 +252,47 @@ struct AABB {
 		return aabb.upper.x > lower.x && upper.x > aabb.lower.x &&
 			aabb.upper.y > lower.y && upper.y > aabb.lower.y &&
 			aabb.upper.z > lower.z && upper.z > aabb.lower.z;
+	}
+
+	Vec3<float> min;
+	Vec3<float> max;
+
+	bool intersectsRay(const Vec3<float>& origin, const Vec3<float>& direction, float& distance) const {
+		float tmin = (min.x - origin.x) / direction.x;
+		float tmax = (max.x - origin.x) / direction.x;
+
+		if (tmin > tmax) std::swap(tmin, tmax);
+
+		float tymin = (min.y - origin.y) / direction.y;
+		float tymax = (max.y - origin.y) / direction.y;
+
+		if (tymin > tymax) std::swap(tymin, tymax);
+
+		if ((tmin > tymax) || (tymin > tmax))
+			return false;
+
+		if (tymin > tmin)
+			tmin = tymin;
+
+		if (tymax < tmax)
+			tmax = tymax;
+
+		float tzmin = (min.z - origin.z) / direction.z;
+		float tzmax = (max.z - origin.z) / direction.z;
+
+		if (tzmin > tzmax) std::swap(tzmin, tzmax);
+
+		if ((tmin > tzmax) || (tzmin > tmax))
+			return false;
+
+		if (tzmin > tmin)
+			tmin = tzmin;
+
+		if (tzmax < tmax)
+			tmax = tzmax;
+
+		distance = tmin;
+		return true;
 	}
 
 };
