@@ -7,7 +7,7 @@
 #pragma comment(lib, "wininet.lib")
 
 Verify::Verify() : Module("Verify", "Verifies allowed players from OneDrive", Category::PLAYER) {
-    this->setEnabled(true); // Activar por defecto
+    this->setEnabled(true);
 }
 
 void Verify::LogError(const std::string& message) {
@@ -18,8 +18,17 @@ void Verify::LogError(const std::string& message) {
         logFile << "[" << now << "] " << message << std::endl;
     }
     catch (...) {
-        // Silenciosamente ignorar errores de logging
+        // Silently ignore logging errors
     }
+}
+
+bool Verify::isValidPlayerListContent(const std::vector<char>& buffer) {
+    std::string content(buffer.begin(), buffer.end());
+    if (content.find("<!DOCTYPE") != std::string::npos || 
+        content.find("<html") != std::string::npos) {
+        return false;
+    }
+    return content.find_first_not_of(" \t\n\r") != std::string::npos;
 }
 
 bool Verify::downloadPlayerList() {
@@ -30,50 +39,85 @@ bool Verify::downloadPlayerList() {
         std::string configPath = basePath + "\\Config";
         std::string filePath = configPath + "\\" + fileName;
 
-        // Crear directorios si no existen
         std::filesystem::create_directories(configPath);
 
-        HINTERNET hInternet = InternetOpen(L"Verify", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
+        // Inicializar WinINet con User-Agent personalizado
+        HINTERNET hInternet = InternetOpen(USER_AGENT, 
+                                         INTERNET_OPEN_TYPE_DIRECT, 
+                                         NULL, 
+                                         NULL, 
+                                         0);
         if (!hInternet) {
             LogError("Failed to initialize WinINet");
             return false;
         }
 
-        HINTERNET hConnect = InternetOpenUrlA(hInternet, oneDriveUrl.c_str(), NULL, 0, INTERNET_FLAG_RELOAD, 0);
+        // Configurar headers adicionales
+        LPCSTR headers = "Accept: text/plain\r\n"
+                        "Connection: keep-alive\r\n";
+
+        // Abrir URL con flags adicionales
+        HINTERNET hConnect = InternetOpenUrlA(hInternet, 
+                                            oneDriveUrl.c_str(), 
+                                            headers,
+                                            strlen(headers),
+                                            INTERNET_FLAG_RELOAD | 
+                                            INTERNET_FLAG_NO_CACHE_WRITE | 
+                                            INTERNET_FLAG_NO_UI | 
+                                            INTERNET_FLAG_SECURE |
+                                            INTERNET_FLAG_IGNORE_CERT_CN_INVALID, 
+                                            0);
+        
         if (!hConnect) {
+            DWORD error = GetLastError();
+            LogError("Failed to connect to OneDrive URL. Error: " + std::to_string(error));
             InternetCloseHandle(hInternet);
-            LogError("Failed to connect to OneDrive URL");
             return false;
         }
 
-        std::ofstream outFile(filePath, std::ios::binary);
-        if (!outFile.is_open()) {
+        // Verificar código de respuesta HTTP
+        DWORD statusCode = 0;
+        DWORD length = sizeof(statusCode);
+        HttpQueryInfo(hConnect, 
+                     HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, 
+                     &statusCode, 
+                     &length, 
+                     NULL);
+
+        if (statusCode != 200) {
+            LogError("HTTP error: " + std::to_string(statusCode));
             InternetCloseHandle(hConnect);
             InternetCloseHandle(hInternet);
+            return false;
+        }
+
+        // Descargar a buffer en memoria
+        std::vector<char> buffer;
+        char tempBuffer[1024];
+        DWORD bytesRead;
+
+        while (InternetReadFile(hConnect, tempBuffer, sizeof(tempBuffer), &bytesRead) && bytesRead > 0) {
+            buffer.insert(buffer.end(), tempBuffer, tempBuffer + bytesRead);
+        }
+
+        InternetCloseHandle(hConnect);
+        InternetCloseHandle(hInternet);
+
+        // Verificar contenido válido
+        if (!isValidPlayerListContent(buffer)) {
+            LogError("Invalid content received");
+            return false;
+        }
+
+        // Escribir archivo
+        std::ofstream outFile(filePath, std::ios::binary);
+        if (!outFile.is_open()) {
             LogError("Failed to open local file for writing");
             return false;
         }
 
-        char buffer[1024];
-        DWORD bytesRead;
-        bool success = true;
-
-        while (InternetReadFile(hConnect, buffer, sizeof(buffer), &bytesRead) && bytesRead > 0) {
-            outFile.write(buffer, bytesRead);
-            if (outFile.fail()) {
-                success = false;
-                break;
-            }
-        }
-
+        outFile.write(buffer.data(), buffer.size());
         outFile.close();
-        InternetCloseHandle(hConnect);
-        InternetCloseHandle(hInternet);
-
-        if (!success) {
-            LogError("Failed while writing to file");
-            return false;
-        }
 
         LogError("Successfully downloaded player list");
         return true;
@@ -105,7 +149,7 @@ bool Verify::loadAllowedPlayers() {
 
         inFile.close();
         LogError("Successfully loaded allowed players");
-        return true;
+        return !allowedPlayers.empty();
     }
     catch (const std::exception& e) {
         LogError("Exception in loadAllowedPlayers: " + std::string(e.what()));
@@ -173,7 +217,7 @@ void Verify::onEnable() {
             LogError("Unauthorized player: " + playerName);
             mc.DisplayClientMessage("%s[Verify]%s %sUnauthorized player!", RED, WHITE, RED);
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            std::terminate(); // Forzar cierre del juego
+            std::terminate();
         }
 
         LogError("Verification successful for: " + playerName);
@@ -189,6 +233,6 @@ void Verify::onEnable() {
 
 void Verify::onDisable() {
     if (retryCount == 0) {
-        this->setEnabled(true); // Reactivar si no estamos en proceso de reintento
+        this->setEnabled(true);
     }
 }
