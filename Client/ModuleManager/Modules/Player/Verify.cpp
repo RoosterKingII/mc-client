@@ -1,4 +1,3 @@
-// Verify.cpp
 #include "Verify.h"
 #include "../../../Client.h"
 #include <wininet.h>
@@ -8,13 +7,13 @@
 #pragma comment(lib, "wininet.lib")
 
 Verify::Verify() : Module("Verify", "Verifies allowed players from OneDrive", Category::PLAYER) {
-    // No activar inmediatamente
-    this->setEnabled(false);
+    this->setEnabled(true); // Activar por defecto
 }
 
 void Verify::LogError(const std::string& message) {
     try {
-        std::ofstream logFile("Client/verify_log.txt", std::ios::app);
+        std::string logPath = Utils::getRoamingStatePath() + "\\verify_log.txt";
+        std::ofstream logFile(logPath, std::ios::app);
         time_t now = std::time(nullptr);
         logFile << "[" << now << "] " << message << std::endl;
     }
@@ -27,15 +26,12 @@ bool Verify::downloadPlayerList() {
     try {
         LogError("Attempting to download player list...");
 
-        // Crear directorios si no existen
-        if (!std::filesystem::exists("Client")) {
-            std::filesystem::create_directory("Client");
-        }
-        if (!std::filesystem::exists("Client/Config")) {
-            std::filesystem::create_directory("Client/Config");
-        }
+        std::string basePath = Utils::getRoamingStatePath();
+        std::string configPath = basePath + "\\Config";
+        std::string filePath = configPath + "\\" + fileName;
 
-        std::string filePath = "Client/Config/" + fileName;
+        // Crear directorios si no existen
+        std::filesystem::create_directories(configPath);
 
         HINTERNET hInternet = InternetOpen(L"Verify", INTERNET_OPEN_TYPE_DIRECT, NULL, NULL, 0);
         if (!hInternet) {
@@ -81,7 +77,6 @@ bool Verify::downloadPlayerList() {
 
         LogError("Successfully downloaded player list");
         return true;
-
     }
     catch (const std::exception& e) {
         LogError("Exception in downloadPlayerList: " + std::string(e.what()));
@@ -92,7 +87,7 @@ bool Verify::downloadPlayerList() {
 bool Verify::loadAllowedPlayers() {
     try {
         LogError("Loading allowed players...");
-        std::string filePath = "Client/Config/" + fileName;
+        std::string filePath = Utils::getRoamingStatePath() + "\\Config\\" + fileName;
 
         std::ifstream inFile(filePath);
         if (!inFile.is_open()) {
@@ -111,7 +106,6 @@ bool Verify::loadAllowedPlayers() {
         inFile.close();
         LogError("Successfully loaded allowed players");
         return true;
-
     }
     catch (const std::exception& e) {
         LogError("Exception in loadAllowedPlayers: " + std::string(e.what()));
@@ -127,7 +121,6 @@ void Verify::onEnable() {
     try {
         LogError("Verify module enabling...");
 
-        // Verificar si el cliente está inicializado usando client->isInitialized()
         if (!client->isInitialized()) {
             LogError("Client not initialized");
             if (retryCount < MAX_RETRIES) {
@@ -141,7 +134,6 @@ void Verify::onEnable() {
             return;
         }
 
-        // Verificar LocalPlayer usando GameData (mc)
         LocalPlayer* localPlayer = mc.getLocalPlayer();
         if (!localPlayer) {
             LogError("LocalPlayer not available");
@@ -157,11 +149,9 @@ void Verify::onEnable() {
             return;
         }
 
-        // Actualizar la URL de OneDrive con la proporcionada
         oneDriveUrl = "https://onedrive.live.com/download.aspx?authkey=%21ANI8FiEEca09Flc&resid=A2B2E8098926E94B%21128";
-        fileName = "players.txt";  // Actualizar el nombre del archivo
+        fileName = "players.txt";
 
-        // Resto del código...
         if (!downloadPlayerList()) {
             LogError("Failed to download player list");
             mc.DisplayClientMessage("%s[Verify]%s %sFailed to download player list!", RED, WHITE, RED);
@@ -176,21 +166,19 @@ void Verify::onEnable() {
             return;
         }
 
-        std::string playerName = *localPlayer->getNameTag();
-        playerName = Utils::sanitize(playerName);
+        std::string playerName = Utils::sanitize(*localPlayer->getNameTag());
         LogError("Checking player: " + playerName);
 
         if (!isPlayerAllowed(playerName)) {
             LogError("Unauthorized player: " + playerName);
             mc.DisplayClientMessage("%s[Verify]%s %sUnauthorized player!", RED, WHITE, RED);
             std::this_thread::sleep_for(std::chrono::milliseconds(500));
-            std::terminate();
+            std::terminate(); // Forzar cierre del juego
         }
 
         LogError("Verification successful for: " + playerName);
         mc.DisplayClientMessage("%s[Verify]%s %sVerification successful!", RED, WHITE, GREEN);
         retryCount = 0;
-
     }
     catch (const std::exception& e) {
         LogError("Exception in onEnable: " + std::string(e.what()));
@@ -200,7 +188,7 @@ void Verify::onEnable() {
 }
 
 void Verify::onDisable() {
-    if (retryCount == 0) { 
-        this->setEnabled(true);
+    if (retryCount == 0) {
+        this->setEnabled(true); // Reactivar si no estamos en proceso de reintento
     }
 }
