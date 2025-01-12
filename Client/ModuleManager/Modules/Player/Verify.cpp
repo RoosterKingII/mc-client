@@ -6,7 +6,7 @@
 #include <ctime>
 #pragma comment(lib, "wininet.lib")
 
-Verify::Verify() : Module("Verify", "Verifies allowed players from OneDrive", Category::PLAYER) {
+Verify::Verify() : Module("Verify", "Verifies allowed players from OneDrive", Category::CLIENT) {
     this->setEnabled(true);
 }
 
@@ -24,7 +24,7 @@ void Verify::LogError(const std::string& message) {
 
 bool Verify::isValidPlayerListContent(const std::vector<char>& buffer) {
     std::string content(buffer.begin(), buffer.end());
-    if (content.find("<!DOCTYPE") != std::string::npos || 
+    if (content.find("<!DOCTYPE") != std::string::npos ||
         content.find("<html") != std::string::npos) {
         return false;
     }
@@ -41,57 +41,36 @@ bool Verify::downloadPlayerList() {
 
         std::filesystem::create_directories(configPath);
 
-        // Inicializar WinINet con User-Agent personalizado
-        HINTERNET hInternet = InternetOpen(USER_AGENT, 
-                                         INTERNET_OPEN_TYPE_DIRECT, 
-                                         NULL, 
-                                         NULL, 
-                                         0);
+        HINTERNET hInternet = InternetOpen(USER_AGENT,
+            INTERNET_OPEN_TYPE_DIRECT,
+            NULL,
+            NULL,
+            0);
         if (!hInternet) {
             LogError("Failed to initialize WinINet");
             return false;
         }
 
-        // Configurar headers adicionales
         LPCSTR headers = "Accept: text/plain\r\n"
-                        "Connection: keep-alive\r\n";
+            "Connection: keep-alive\r\n";
 
-        // Abrir URL con flags adicionales
-        HINTERNET hConnect = InternetOpenUrlA(hInternet, 
-                                            oneDriveUrl.c_str(), 
-                                            headers,
-                                            strlen(headers),
-                                            INTERNET_FLAG_RELOAD | 
-                                            INTERNET_FLAG_NO_CACHE_WRITE | 
-                                            INTERNET_FLAG_NO_UI | 
-                                            INTERNET_FLAG_SECURE |
-                                            INTERNET_FLAG_IGNORE_CERT_CN_INVALID, 
-                                            0);
-        
+        HINTERNET hConnect = InternetOpenUrlA(hInternet,
+            oneDriveUrl.c_str(),
+            headers,
+            strlen(headers),
+            INTERNET_FLAG_RELOAD |
+            INTERNET_FLAG_NO_CACHE_WRITE |
+            INTERNET_FLAG_NO_UI |
+            INTERNET_FLAG_SECURE |
+            INTERNET_FLAG_IGNORE_CERT_CN_INVALID,
+            0);
+
         if (!hConnect) {
-            DWORD error = GetLastError();
-            LogError("Failed to connect to OneDrive URL. Error: " + std::to_string(error));
+            LogError("Failed to connect to OneDrive URL");
             InternetCloseHandle(hInternet);
             return false;
         }
 
-        // Verificar código de respuesta HTTP
-        DWORD statusCode = 0;
-        DWORD length = sizeof(statusCode);
-        HttpQueryInfo(hConnect, 
-                     HTTP_QUERY_STATUS_CODE | HTTP_QUERY_FLAG_NUMBER, 
-                     &statusCode, 
-                     &length, 
-                     NULL);
-
-        if (statusCode != 200) {
-            LogError("HTTP error: " + std::to_string(statusCode));
-            InternetCloseHandle(hConnect);
-            InternetCloseHandle(hInternet);
-            return false;
-        }
-
-        // Descargar a buffer en memoria
         std::vector<char> buffer;
         char tempBuffer[1024];
         DWORD bytesRead;
@@ -103,13 +82,11 @@ bool Verify::downloadPlayerList() {
         InternetCloseHandle(hConnect);
         InternetCloseHandle(hInternet);
 
-        // Verificar contenido válido
         if (!isValidPlayerListContent(buffer)) {
             LogError("Invalid content received");
             return false;
         }
 
-        // Escribir archivo
         std::ofstream outFile(filePath, std::ios::binary);
         if (!outFile.is_open()) {
             LogError("Failed to open local file for writing");
@@ -161,35 +138,33 @@ bool Verify::isPlayerAllowed(const std::string& playerName) {
     return allowedPlayers.find(playerName) != allowedPlayers.end();
 }
 
-void Verify::onEnable() {
-    try {
-        LogError("Verify module enabling...");
+void Verify::onSendPacket(Packet* packet, bool& shouldCancel) {
+    if (!hasVerified && packet->getId() == PacketID::Login) {
+        isConnected = true;
+        connectionTime = std::chrono::steady_clock::now();
+        LogError("Connection detected, starting verification delay");
+    }
+}
 
-        if (!client->isInitialized()) {
-            LogError("Client not initialized");
-            if (retryCount < MAX_RETRIES) {
-                retryCount++;
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                this->setEnabled(true);
-                return;
-            }
-            retryCount = 0;
-            this->setEnabled(false);
-            return;
+void Verify::onNormalTick(Actor* actor) {
+    if (!hasVerified && isConnected) {
+        auto currentTime = std::chrono::steady_clock::now();
+        auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(
+            currentTime - connectionTime).count();
+
+        if (elapsedSeconds >= VERIFICATION_DELAY) {
+            performVerification();
         }
+    }
+}
+
+void Verify::performVerification() {
+    try {
+        LogError("Starting verification process...");
 
         LocalPlayer* localPlayer = mc.getLocalPlayer();
         if (!localPlayer) {
             LogError("LocalPlayer not available");
-            if (retryCount < MAX_RETRIES) {
-                retryCount++;
-                std::this_thread::sleep_for(std::chrono::seconds(1));
-                this->setEnabled(true);
-                return;
-            }
-            retryCount = 0;
-            mc.DisplayClientMessage("%s[Verify]%s %sWaiting for player...", RED, WHITE, YELLOW);
-            this->setEnabled(false);
             return;
         }
 
@@ -199,14 +174,16 @@ void Verify::onEnable() {
         if (!downloadPlayerList()) {
             LogError("Failed to download player list");
             mc.DisplayClientMessage("%s[Verify]%s %sFailed to download player list!", RED, WHITE, RED);
-            this->setEnabled(false);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::terminate();
             return;
         }
 
         if (!loadAllowedPlayers()) {
             LogError("Failed to load player list");
             mc.DisplayClientMessage("%s[Verify]%s %sFailed to load player list!", RED, WHITE, RED);
-            this->setEnabled(false);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            std::terminate();
             return;
         }
 
@@ -222,17 +199,24 @@ void Verify::onEnable() {
 
         LogError("Verification successful for: " + playerName);
         mc.DisplayClientMessage("%s[Verify]%s %sVerification successful!", RED, WHITE, GREEN);
-        retryCount = 0;
+        hasVerified = true;
     }
     catch (const std::exception& e) {
-        LogError("Exception in onEnable: " + std::string(e.what()));
+        LogError("Exception in performVerification: " + std::string(e.what()));
         mc.DisplayClientMessage("%s[Verify]%s %sError: %s", RED, WHITE, RED, e.what());
-        this->setEnabled(false);
+        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::terminate();
+    }
+}
+
+void Verify::onEnable() {
+    if (!hasVerified && !isConnected) {
+        LogError("Module enabled, waiting for connection...");
     }
 }
 
 void Verify::onDisable() {
-    if (retryCount == 0) {
+    if (!hasVerified) {
         this->setEnabled(true);
     }
 }
