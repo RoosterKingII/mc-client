@@ -44,4 +44,6 @@ public:
 	static bool worldToScreen(const Vec3<float>& worldPos, Vec2<float>& screenPos);
 	static void renderImage(std::string filePath, Vec4<float> rectPosition, Vec2<float> uvPos = Vec2<float>(0.f, 0.f), Vec2<float> uvSize = Vec2<float>(1.f, 1.f), Type type = EXTERNAL);
 	static void flushImage(MC_Color color = MC_Color(255, 255, 255), float alpha = 1.f);
+	static void draw2DBox(const AABB& aabb, UIColor color, UIColor lineColor, float lineWidth, bool fill, bool corners);
 };
+
