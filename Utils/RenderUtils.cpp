@@ -132,6 +132,74 @@ void RenderUtils::drawLine2D(const Vec2<float>& start, const Vec2<float>& end, c
 
 	Tessellator2D->renderMeshImmediately(screenContext2D, uiMaterial);
 }
+void RenderUtils::draw2DBox(const AABB& aabb, UIColor color, UIColor lineColor, float lineWidth, bool fill, bool corners) {
+	Vec3<float> lower = Vec3<float>(aabb.lower.x, aabb.lower.y, aabb.lower.z);
+	Vec3<float> upper = Vec3<float>(aabb.upper.x, aabb.upper.y, aabb.upper.z);
+
+	Vec3<float> worldPoints[8];
+	worldPoints[0] = Vec3<float>(lower.x, lower.y, lower.z);
+	worldPoints[1] = Vec3<float>(lower.x, lower.y, upper.z);
+	worldPoints[2] = Vec3<float>(upper.x, lower.y, lower.z);
+	worldPoints[3] = Vec3<float>(upper.x, lower.y, upper.z);
+	worldPoints[4] = Vec3<float>(lower.x, upper.y, lower.z);
+	worldPoints[5] = Vec3<float>(lower.x, upper.y, upper.z);
+	worldPoints[6] = Vec3<float>(upper.x, upper.y, lower.z);
+	worldPoints[7] = Vec3<float>(upper.x, upper.y, upper.z);
+
+	std::vector<Vec2<float>> points;
+	for (int i = 0; i < 8; i++) {
+		Vec2<float> screen;
+		if (worldToScreen(worldPoints[i], screen)) {
+			points.push_back(screen);
+		}
+	}
+
+	if (points.size() < 1) return;
+
+	Vec4<float> resultRect = { points[0].x, points[0].y, points[0].x, points[0].y };
+	for (const auto& point : points) {
+		if (point.x < resultRect.x) resultRect.x = point.x;
+		if (point.y < resultRect.y) resultRect.y = point.y;
+		if (point.x > resultRect.z) resultRect.z = point.x;
+		if (point.y > resultRect.w) resultRect.w = point.y;
+	}
+
+	if (fill) {
+		fillRectangle(resultRect, MC_Color(color.r, color.g, color.b, color.a), color.a / 255.0f);
+	}
+
+	if (!corners) {
+		// Draw regular rectangle
+		Vec2<float> start(resultRect.x, resultRect.y);
+		Vec2<float> end(resultRect.z, resultRect.w);
+
+		// Draw the lines
+		drawLine2D(Vec2<float>(start.x, start.y), Vec2<float>(end.x, start.y), MC_Color(lineColor.r, lineColor.g, lineColor.b, lineColor.a), lineWidth);
+		drawLine2D(Vec2<float>(start.x, end.y), Vec2<float>(end.x, end.y), MC_Color(lineColor.r, lineColor.g, lineColor.b, lineColor.a), lineWidth);
+		drawLine2D(Vec2<float>(start.x, start.y), Vec2<float>(start.x, end.y), MC_Color(lineColor.r, lineColor.g, lineColor.b, lineColor.a), lineWidth);
+		drawLine2D(Vec2<float>(end.x, start.y), Vec2<float>(end.x, end.y), MC_Color(lineColor.r, lineColor.g, lineColor.b, lineColor.a), lineWidth);
+	}
+	else {
+		float length = (resultRect.z - resultRect.x) / 4.0f;
+		MC_Color lineCol(lineColor.r, lineColor.g, lineColor.b, lineColor.a);
+
+		// Top left
+		drawLine2D(Vec2<float>(resultRect.x, resultRect.y), Vec2<float>(resultRect.x + length, resultRect.y), lineCol, lineWidth);
+		drawLine2D(Vec2<float>(resultRect.x, resultRect.y), Vec2<float>(resultRect.x, resultRect.y + length), lineCol, lineWidth);
+
+		// Top right
+		drawLine2D(Vec2<float>(resultRect.z, resultRect.y), Vec2<float>(resultRect.z - length, resultRect.y), lineCol, lineWidth);
+		drawLine2D(Vec2<float>(resultRect.z, resultRect.y), Vec2<float>(resultRect.z, resultRect.y + length), lineCol, lineWidth);
+
+		// Bottom left
+		drawLine2D(Vec2<float>(resultRect.x, resultRect.w), Vec2<float>(resultRect.x + length, resultRect.w), lineCol, lineWidth);
+		drawLine2D(Vec2<float>(resultRect.x, resultRect.w), Vec2<float>(resultRect.x, resultRect.w - length), lineCol, lineWidth);
+
+		// Bottom right
+		drawLine2D(Vec2<float>(resultRect.z, resultRect.w), Vec2<float>(resultRect.z - length, resultRect.w), lineCol, lineWidth);
+		drawLine2D(Vec2<float>(resultRect.z, resultRect.w), Vec2<float>(resultRect.z, resultRect.w - length), lineCol, lineWidth);
+	}
+}
 
 void RenderUtils::drawBox(const AABB& blockAABB, UIColor color, UIColor lineColor, float lineWidth, bool fill, bool outline) {
 	if (mc.getClientInstance()->getLevelRenderer() == nullptr) return;
