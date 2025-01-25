@@ -7,25 +7,14 @@ Emote::Emote() : Module("Emote", "Spam emotes automatically", Category::PLAYER) 
 void Emote::onNormalTick(Actor* actor) {
     if (!actor) return;
 
-    LocalPlayer* player = mc.getLocalPlayer();
-    if (!player) return;
-
-    tickDelay++;
-    if (tickDelay > delay) {
-        // Generador de números aleatorios
-        std::random_device rd;
-        std::mt19937 gen(rd());
-        std::uniform_int_distribution<> dis(0, emoteUUIDs.size() - 1);
-
-        // Seleccionar un índice aleatorio
-        int randomIndex = dis(gen);
-
-        // Reproducir el emote aleatorio
-        player->playEmote(emoteUUIDs[randomIndex], true);
-        tickDelay = 0;
-    }
-}
-
-void Emote::onRender(ImDrawList* drawlist) {
-    if (!mc.canUseMoveKeys()) return;
-}
+	if (mc.getLocalPlayer() == nullptr) return;
+	delay++;
+	if (delay > delay) {
+		if (currentEmoteIndex >= emoteUUIDs.size()) {
+			currentEmoteIndex = 0; // Reset to the beginning if reached the end
+		}
+		mc.getLocalPlayer()->playEmote(emoteUUIDs[currentEmoteIndex],false);
+		currentEmoteIndex++;
+		delay = 0;
+	};
+};
