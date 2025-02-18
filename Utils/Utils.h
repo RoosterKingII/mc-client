@@ -249,6 +249,24 @@ public:
 		va_end(arg);
 	}
 
+	static void sendChat(std::string text, ...) {
+		va_list arg;
+		va_start(arg, text);
+
+		char message[300];
+		vsprintf_s(message, 300, text.c_str(), arg);
+		va_end(arg);
+
+		TextPacket* textPacket = new TextPacket();
+		textPacket->messageType = 1;  // Chat type
+		textPacket->message = std::string(message);
+		textPacket->translationNeeded = false;
+
+		mc.getClientInstance()->loopbackPacketSender->sendToServer(textPacket);
+
+		delete textPacket;
+	}
+
 	std::string getClipboardText() {
 		if (!OpenClipboard(nullptr)) {
 			return "";
