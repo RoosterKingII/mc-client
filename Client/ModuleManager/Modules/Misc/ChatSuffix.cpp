@@ -1,47 +1,76 @@
 #include "ChatSuffix.h"
-bool green = true;
-int mode2 = 0;
-ChatSuffix::ChatSuffix() : Module("ChatSuffix", "Add a suffix to your chat messages", Category::MISC) {
-	addEnumSetting("Mode", "NULL", { "Desmariquead@ si lo lees", "EZZZ", "horionclien", "NukeMobile", "biba Dios", "Put@ Client", "el que se mueva es gei", "si lees esto eres maric@", " Me cojo al mudo", "Me cojo al que hable"}, &mode2);
+
+ChatSuffix::ChatSuffix() : Module("ChatSuffix", "Add a random suffix to your chat messages", Category::MISC) {
+    // Inicializar el generador de números aleatorios
+    std::random_device rd;
+    rng = std::mt19937(rd());
+    
+    // Inicializar vector de sufijos
+    suffixes = {
+        " | Desmariquead@ si lo lees",
+		" | Desmariquead@ si lo ves",
+        " | EZZZ",
+		" | gg",
+		" | LMAO",
+		" | LUL",
+		" | 1v1?",
+        " | horionclien",
+        " | NukeMobile",
+        " | biba Dios",
+        " | Put@ Client",
+
+		" | Put@ Horion"
+        " | el que se mueva es gei",
+
+		" | el que lea es gei",
+		" | el que hable es gei",
+		" | el que respire es gei",
+		" | el que exista es gei",
+		" | el que juegue es gei",
+        " | si lees esto eres marica",
+
+		" | si lees esto eres gei",
+        
+        " | Me cojo al mudo",
+        
+        " | Me cojo al que hable",
+
+		
+        " | Me cojo al que lea",
+
+		" | Me cojo al mundo",
+
+		" | Me cojo a todos",
+		
+        " | MARIC@",
+
+		" | GEI",
+		" | ʜitler client",
+		" | ",
+
+
+    };
+}
+
+std::string ChatSuffix::getRandomSuffix() {
+    std::uniform_int_distribution<int> dist(0, suffixes.size() - 1);
+    return suffixes[dist(rng)];
 }
 
 void ChatSuffix::onSendPacket(Packet* packet, bool& shouldCancel) {
-	if (packet->getId() == PacketID::Text) {
-		TextPacket* textPacket = reinterpret_cast<TextPacket*>(packet);
-		std::string message = textPacket->message;
-		if (green)
-			textPacket->message = std::string(">" + message);
-		switch (mode2) {
-		case 0:
-			textPacket->message = std::string(message + std::string(" | Desmariquead@ si lo lees"));
-			break;
-		case 1:
-			textPacket->message = std::string(message + std::string(" | EZZZ"));
-			break;
-		case 2:
-			textPacket->message = std::string(message + std::string(" | horionclien"));
-			break;
-		case 3:
-			textPacket->message = std::string(message + std::string(" | NukeMobile"));
-			break;
-		case 4:
-			textPacket->message = std::string(message + std::string(" | biba Dios"));
-			break;
-		case 5:
-			textPacket->message = std::string(message + std::string(" | Put@ Client"));
-			break;
-		case 6:
-			textPacket->message = std::string(message + std::string(" | el que se mueva es gei"));
-			break;
-		case 7:
-			textPacket->message = std::string(message + std::string(" | si lees esto eres maric@"));
-			break;
-		case 8:
-			textPacket->message = std::string(message + std::string(" | Me cojo al mudo"));
-			break;
-		case 9:
-			textPacket->message = std::string(message + std::string(" | Me cojo al que hable"));
-			break;
-		}
-	}
+    if (packet->getId() == PacketID::Text) {
+        TextPacket* textPacket = reinterpret_cast<TextPacket*>(packet);
+        std::string message = textPacket->message;
+        
+        // Agregar prefijo ">" si green está activado
+        if (green) {
+            message = ">" + message;
+        }
+        
+        // Agregar sufijo aleatorio
+        message += getRandomSuffix();
+        
+        // Actualizar el mensaje del paquete
+        textPacket->message = message;
+    }
 }
