@@ -2,13 +2,13 @@
 #include "../Client.h"
 
 CommandManager::CommandManager() {
-    commandList.push_back(new Test());
     commandList.push_back(new ItemId());
     commandList.push_back(new Baritone());
     commandList.push_back(new Save());
     commandList.push_back(new IRC());
     commandList.push_back(new Bind());
     commandList.push_back(new Friend());
+	commandList.push_back(new Eject());
 }
 
 CommandManager::~CommandManager() {
@@ -18,7 +18,7 @@ CommandManager::~CommandManager() {
 }
 
 void CommandManager::onSendTextPacket(TextPacket* packet, bool& shouldCancel) {
-    std::string message = packet->message;
+    std::string message = packet->message.getText(); // Usar getText() para obtener el string
     if (message[0] != prefix) return;
     shouldCancel = true;
     std::vector<std::string> args;
@@ -37,7 +37,7 @@ void CommandManager::onSendTextPacket(TextPacket* packet, bool& shouldCancel) {
         }
     }
     if (args.size() == 0) {
-        mc.DisplayClientMessage("[%snhack%s] %sInvalid command!", BLUE, WHITE, RED);
+        mc.DisplayClientMessage("[%sRooster%s] %sInvalid command!", BLUE, WHITE, RED);
         return;
     }
     Command* current = nullptr;
@@ -53,7 +53,7 @@ void CommandManager::onSendTextPacket(TextPacket* packet, bool& shouldCancel) {
         if (shouldBreak) break;
     }
     if (current == nullptr) {
-        mc.DisplayClientMessage("[%snhack%s] %sInvalid command!", BLUE, WHITE, RED);
+        mc.DisplayClientMessage("[%sRooster%s] %sInvalid command!", BLUE, WHITE, RED);
         return;
     }
     current->execute(args);
