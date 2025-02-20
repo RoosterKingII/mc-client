@@ -1,3 +1,5 @@
+// Created by Tony on 2024-10-10 10:01:54
+
 #pragma once
 #include "../../Utils/MemoryUtils.h"
 #include <vector>
@@ -27,6 +29,7 @@ class ItemStack;
 enum MaterialType;
 class Player;
 
+
 struct EntityId {
 	uint32_t value;
 };
@@ -36,7 +39,7 @@ class EntityRegistry;
 struct EntityContext {
 	EntityRegistry* registry;
 	EntityId id;
-	
+
 };
 
 class Actor {
@@ -48,7 +51,6 @@ public:
 	BUILD_ACCESS(this, ActorRotationComponent*, rotationComponent, 0x2D8); // 48 8B 83 ? ? ? ? 0F 28 C7
 	BUILD_ACCESS(this, AABBShapeComponent*, aabbComponent, 0x2D0);
 	BUILD_ACCESS(this, bool, isDestroying, 0x1988);
-	BUILD_ACCESS(this, int, damageTime, 0x214);
 protected:
 	template<typename T> // ncc
 	T* getComponent(uintptr_t funcAddr) {
@@ -77,19 +79,9 @@ public:
 	ItemStack* getArmor(int slot) {
 		return this->getArmorContainer()->getItemStack(slot);
 	}
-	Vec2<float> CalcAngle(Vec3<float> dst, Vec3<float> ths) {
-		Vec3<float> diff = dst.sub(ths);
 
-		diff.y = diff.y / diff.magnitude();
-		Vec2<float> angles;
-		angles.x = asinf(diff.y) * -DEG_RAD;
-		angles.y = (float)-atan2f(diff.x, diff.z) * DEG_RAD;
-
-		return angles;
-	}
-
-	std::string* getNameTag() {
-		using func_t = std::string* (__thiscall*)(Actor*);
+	TextHolder* getNameTag() {
+		using func_t = TextHolder * (__thiscall*)(Actor*);
 		static func_t func = (func_t)findSig(Sigs::actor::getNameTag);
 		return func(this);
 	}
@@ -105,7 +97,7 @@ public:
 		return (Vec3<float>*)(v1 + 0xC);
 	}
 	Vec3<float>* getPosition() {
-		return (Vec3<float>*)*((uintptr_t*)this + 0x59);
+		return (Vec3<float>*) * ((uintptr_t*)this + 0x59);
 	}
 
 	Vec3<float> getHumanPos() {
@@ -120,7 +112,7 @@ public:
 		static func_t func = (func_t)(MemoryUtils::getBase() + 0x2648380);
 		func(this, pos, nullptr);
 	}
-	void setonground(EntityContext* a,bool onground) {
+	void setonground(EntityContext* a, bool onground) {
 		using func_t = void(__thiscall*)(EntityContext*, bool);
 		static func_t func = (func_t)findSig(Sigs::actor::setonground);
 		return func(a, onground);
@@ -130,7 +122,7 @@ public:
 		return (Vec2<float>*)(v1 + 0x8);
 	}
 	Vec2<float>* getRotation() {
-		return (Vec2<float>*)*((uintptr_t*)this + 0x5B);
+		return (Vec2<float>*) * ((uintptr_t*)this + 0x5B);
 	}
 	AABB* getAABB() {
 		return (AABB*)*((uintptr_t*)this + 0x5A);
@@ -139,11 +131,19 @@ public:
 	bool isOnGround() {
 		return getOnGroundFlagComponent();
 	}
-	
+
+
 	ActorTypeComponent* getActorTypeComponent() {
 		static uintptr_t funcAddr = MemoryUtils::getFuncFromCall(findSig(Sigs::component::getActorTypeComponent));
 		return getComponent<ActorTypeComponent>(funcAddr);
 	}
+	//   Memory::findSig     (    std::string    (    GET_SIG   (    "tryGetPrefix"   )    ) + " " +    GET_SIG   (   "Actor::getMoveInputHandler"    )   )  ;
+	/*MoveInputComponent* getMoveInputHandler() { //??$try_get@UMoveInputComponent
+
+		static uintptr_t sig = MemoryUtils::findSigdll(std::string(GET_SIG("tryGetPrefix")) + " " + GET_SIG("Actor::getMoveInputHandler"));
+
+		return tryGet<MoveInputComponent>(sig);
+	}*/
 	FallDistanceComponent* getFallDistanceComponent() {
 		static uintptr_t funcAddr = MemoryUtils::getFuncFromCall(findSig(Sigs::component::getFallDistanceComponent));
 		return getComponent<FallDistanceComponent>(funcAddr);
@@ -208,8 +208,8 @@ public:
 		if (component == nullptr) return component->pos;
 		return *(Vec3<float>*)component;
 	}
-	
-	
+
+
 	uint64_t getRuntimeID() { //sub_142645130 //40 53 48 83 EC 20 8B 41 18 48 8B DA 48 8B 49 10 48 8D 54 24 30 89 44 24 30 E8 ?? ?? ?? ?? 48 85 C0 74 0F
 		RuntimeIDComponent* component = getRuntimeIDComponent();
 		if (component == nullptr) return 0;
