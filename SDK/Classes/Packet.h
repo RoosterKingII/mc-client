@@ -245,15 +245,17 @@ public:
 		TextObjectWhisper = 9,
 		TextObject = 10,
 	};
-		int8_t messageType;
-		TextHolder userName;
-		TextHolder message;
-		TextHolder xboxUserId;
-	private:
-		char pad[0x18];
-	public:
-		bool translationNeeded = false;
-	};
+	
+	int8_t messageType;
+	std::string userName;
+	std::string message;
+	std::string xboxUserId;
+	std::string platformChatId;
+private:
+	char pad[0x18];
+public:
+	bool translationNeeded = false;
+};
 /*playerauth field */
 enum class AuthInputAction : uint64_t
 {
