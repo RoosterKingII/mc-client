@@ -1,8 +1,7 @@
 #include "TotemPopCounter.h"
 
 TotemPopCounter::TotemPopCounter() : Module("TotemPopCounter", "Counts totem pops for each player", Category::COMBAT) {
-    addBoolCheck("Client Message", "Send pop messages to client", &sendClientMessage);
-    addBoolCheck("Global Chat", "Send pop messages to global chat", &sendGlobalChat);
+    //addBoolCheck("Send Chat", "Send pop messages to chat", &sendChat);
 }
 
 TotemPopCounter::~TotemPopCounter() {
@@ -28,8 +27,7 @@ void TotemPopCounter::onNormalTick(Actor* actor) {
         if (currentEntity == actor) continue;
         if (!currentEntity->isAlive()) continue;
 
-        TextHolder* nameHolder = currentEntity->getNameTag();
-        std::string playerName = nameHolder->getText();
+        std::string playerName = *currentEntity->getNameTag();
 
         // Inicializar el contador y estado del tótem si no existe
         if (popList.find(playerName) == popList.end()) {
@@ -46,17 +44,11 @@ void TotemPopCounter::onNormalTick(Actor* actor) {
                 if (chestplate && chestplate->item != nullptr) {
                     popList[playerName]++;
 
-                    std::string message = playerName + " popped " +
-                        std::to_string(popList[playerName]) + " totems!";
-
-                    if (sendClientMessage) {
+                    if (sendChat) {
+                        std::string message = playerName + " popped " +
+                            std::to_string(popList[playerName]) + " totems!";
                         mc.DisplayClientMessage(message.c_str());
                     }
-
-                    if (sendGlobalChat) {
-                        sendChat(message.c_str());
-                    }
-
                     totemEquipped[playerName] = true;
                 }
             }
