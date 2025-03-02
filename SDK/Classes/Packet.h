@@ -249,8 +249,6 @@ public:
 	int8_t messageType;
 	std::string userName;
 	std::string message;
-	std::string xboxUserId;
-	std::string platformChatId;
 private:
 	char pad[0x18];
 public:
