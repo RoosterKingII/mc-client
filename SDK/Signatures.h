@@ -14,6 +14,7 @@ namespace Sigs {
     }
     namespace packet {
         extern const hat::signature_view respawnpacket;
+		extern const hat::signature_view TextPacket;
         extern const hat::signature_view ModEquipmentPacket;
         extern const hat::signature_view AnimatePacket;
         extern const hat::signature_view MobEffectPacket;
