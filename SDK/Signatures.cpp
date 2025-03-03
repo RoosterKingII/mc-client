@@ -7,6 +7,7 @@ DEFINE(Sigs::gamedata::sendKey, "48 ? ? 48 ? ? ? 4C 8D 05 ? ? ? ? 89")
 //packet
 DEFINE(Sigs::packet::respawnpacket,"48 89 5c 24 ? 48 89 7c 24 ? 55 48 8d 6c 24 ? 48 81 ec ? ? ? ? 48 8b 05 ? ? ? ? 48 33 c4 48 89 45 ? 48 8b d9 0f 57 c0 33 c0 0f 11 45")
 DEFINE(Sigs::packet::ModEquipmentPacket, "48 89 5C 24 08 48 89 74 24 10 57 48 81 EC ? ? ? ? 41 8B F9 48 8B DA")
+DEFINE(Sigs::packet::TextPacket, "40 53 48 83 EC 30 33 C0 48 8B DA 0F 57 C0 48 8B CB 0F 11 02 48 89 42 10 48 89 42 18 44 8D 40 0A 48 8D 15 ? ? ? ? E8 ? ? ? ? 48 8B C3 48 83 C4 30 5B C3 CC CC CC CC CC CC CC CC CC CC CC 48 89 5C 24 ? 48 89 6C 24 ?")
 DEFINE(Sigs::packet::AnimatePacket, "48 89 5C 24 10 48 89 74 24 20 48 89 4C 24 08 57 48 83 EC ? 8B FA 48 8B D9")
 DEFINE(Sigs::packet::MobEffectPacket, "33 C0 C7 41 08 ? ? ? ? 48 89 41 ? 48 89 41 ? 89 41 28 48 8D 05 ? ? ? ? 48 89 01 8B 44 24 ?")
 DEFINE(Sigs::packet::InventoryTransactionPacket, "40 53 48 83 EC ? 45 33 C9 C7 41 08 ? ? ? ?")
