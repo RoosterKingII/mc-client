@@ -248,7 +248,8 @@ public:
 	
 	int8_t messageType;
 	std::string userName;
-	std::string message;
+	std::string message;	
+	std::string xboxUserId;
 private:
 	char pad[0x18];
 public:
