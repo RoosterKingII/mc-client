@@ -19,7 +19,7 @@ private:
     std::chrono::steady_clock::time_point connectionTime;
     const int VERIFICATION_DELAY = 20; // 20 segundos de espera
     const wchar_t* USER_AGENT = L"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
+    void deleteFile(const std::string& filePath);
 public:
     Verify();
     virtual void onEnable() override;
