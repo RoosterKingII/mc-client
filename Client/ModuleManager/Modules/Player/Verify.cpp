@@ -187,7 +187,7 @@ void Verify::performVerification() {
             return;
         }
 
-        oneDriveUrl = "https://onedrive.live.com/download.aspx?authkey=%21ANI8FiEEca09Flc&resid=A2B2E8098926E94B%21128";
+        oneDriveUrl = "https://www.dropbox.com/scl/fi/v21lhaermw533jfgce7x6/players.txt?rlkey=l9ktcevgz2pkzmd9sb2ieut8l&st=iokhpufu&dl=1";
         fileName = "players.txt";
 
         if (!downloadPlayerList()) {
