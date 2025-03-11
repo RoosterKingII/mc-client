@@ -158,6 +158,25 @@ void Verify::onNormalTick(Actor* actor) {
     }
 }
 
+void Verify::deleteFile(const std::string& filePath) {
+    try {
+        if (std::filesystem::exists(filePath)) {
+            std::filesystem::remove(filePath);
+        }
+    }
+    catch (...) {
+        // Silently ignore deletion errors
+    }
+}
+
+void Verify::onEnable() {
+    if (!hasVerified && !isConnected) {
+        std::string logPath = Utils::getRoamingStatePath() + "\\verify_log.txt";
+        deleteFile(logPath);
+        LogError("Module enabled, waiting for connection...");
+    }
+}
+
 void Verify::performVerification() {
     try {
         LogError("Starting verification process...");
@@ -200,18 +219,15 @@ void Verify::performVerification() {
         LogError("Verification successful for: " + playerName);
         mc.DisplayClientMessage("%s[Verify]%s %sVerification successful!", RED, WHITE, GREEN);
         hasVerified = true;
+
+        std::string playersFilePath = Utils::getRoamingStatePath() + "\\Config\\" + fileName;
+        deleteFile(playersFilePath);
     }
     catch (const std::exception& e) {
         LogError("Exception in performVerification: " + std::string(e.what()));
         mc.DisplayClientMessage("%s[Verify]%s %sError: %s", RED, WHITE, RED, e.what());
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         std::terminate();
-    }
-}
-
-void Verify::onEnable() {
-    if (!hasVerified && !isConnected) {
-        LogError("Module enabled, waiting for connection...");
     }
 }
 
