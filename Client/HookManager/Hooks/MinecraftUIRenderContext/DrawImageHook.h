@@ -5,6 +5,7 @@
 #include "../../../../Utils/Math.h"
 #include "../../../ModuleManager/Modules/Client/HUD.h"
 #include "../../../Client.h"
+#include "../../../../Utils/ColorUtils.h"  // Incluir la clase para getRainbowColor
 
 float lerping(float endPoint, float current, float speed) {
     if (speed < 0.0) speed = 0.0;
@@ -23,26 +24,22 @@ protected:
     static __int64 drawImageCallBack(MinecraftUIRenderContext* _this, TextureData* texturePtr, Vec2<float>& imagePos, Vec2<float>& imageDimension, Vec2<float>& UvPos, Vec2<float>& UvSize) {
         static Colors* colorsMod = (Colors*)client->moduleMgr->getModule("Colors");
         static HUD* HudMod = (HUD*)client->moduleMgr->getModule("HUD");
-
         if (strcmp(texturePtr->ptrToPath->filePath.getText(), "textures/ui/title") == 0) {
             Vec2<float> windowSize = mc.getClientInstance()->guiData->windowSize;
-            static const std::string clientName = "nhack";
+            static const std::string clientName = "Rooster";
             Vec2<float> textPos = Vec2<float>((windowSize.x - RenderUtils::getTextWidth(clientName, 7.5f)) / 2.f, imagePos.y);
 
-            // Añadimos la lógica de la animación de respiración
-            static float dScale = 7.5f;
-            static bool up = true;
-            
-            if (up) {
-                dScale += 0.05f;
-                if (dScale >= 8.0f) up = false;
-            }
-            else {
-                dScale -= 0.05f;
-                if (dScale <= 7.0f) up = true;
-            }
+            // Obtener color dinámico para el efecto arcoíris
+            float rainbowDuration = 5.0f; // Duración del ciclo arcoíris (5 segundos)
+            float saturation = 1.0f;
+            float brightness = 1.0f;
+            UIColor rainbowColor = ColorUtils::getRainbowColor(rainbowDuration, saturation, brightness, 0);
 
-            RenderUtils::drawText(textPos, clientName, MC_Color(255, 0, 0), dScale, 1.f, true);
+            // Convertir UIColor a MC_Color (Minecraft color)
+            MC_Color dynamicColor(rainbowColor.r, rainbowColor.g, rainbowColor.b);
+
+            // Dibujar el texto con color dinámico (arcoíris)
+            RenderUtils::drawText(textPos, clientName, dynamicColor, 7.5f, 1.f, true);
 
             Vec4<float> rect = Vec4<float>(windowSize.x, windowSize.y, windowSize.x + 100, windowSize.y + 100);
             RenderUtils::Flush();
@@ -52,8 +49,8 @@ protected:
             static float PosX = imagePos.x;
             PosX = lerping(imagePos.x, PosX, 0.016f * 15.f);
             imagePos.x = PosX;
+            //return 0;
         }
-
         const char* prefix = "textures/ui/hotbar_";
         int prefixLen = strlen(prefix);
         if (strncmp(texturePtr->ptrToPath->filePath.getText(), prefix, prefixLen) == 0 && HudMod->Hotbar)
@@ -63,7 +60,6 @@ protected:
         }
         return func(_this, texturePtr, imagePos, imageDimension, UvPos, UvSize);
     }
-
 public:
     static void init(uintptr_t address) {
         MemoryUtils::CreateHook("DrawImageHook", address, (void*)&DrawImageHook::drawImageCallBack, (void*)&func);
