@@ -1,3 +1,4 @@
+// TotemPopCounter.h
 #pragma once
 #include "../Module.h"
 #include <map>
@@ -7,6 +8,7 @@ private:
     std::map<std::string, int> popList;
     std::map<std::string, bool> totemEquipped;
     bool sendChat = true;
+    bool clientOnly = true; // Nuevo booleano para mensajes solo al cliente
 
 public:
     TotemPopCounter();
