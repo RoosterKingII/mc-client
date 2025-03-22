@@ -1,6 +1,13 @@
 #include "RenderUtils.h"
 #include "../SDK/GameData.h"
+#include "../resource.h"
 #include <glm/ext/matrix_transform.hpp>
+#include "GuiInfo.h"
+
+#include <fstream> // Para ofstream
+#include <windows.h> // Para funciones de recursos de Windows
+Vec2<float> GuiInfo::ScreenRes = { 0, 0 };
+Vec2<float> GuiInfo::TrueScreenRes = { 0, 0 };
 
 void RenderUtils::SetUp(ScreenView* screenView, MinecraftUIRenderContext* ctx) {
 	//if (!init) {
@@ -14,6 +21,22 @@ void RenderUtils::SetUp(ScreenView* screenView, MinecraftUIRenderContext* ctx) {
 		init = true;
 	//}
 	deltaTime = screenView->deltaTime;
+
+    // *** DESCOMENTAR y MODIFICAR para usar guiData->windowSize ***
+    if (screenView != nullptr && ctx != nullptr && ctx->clientInstance != nullptr && ctx->clientInstance->guiData != nullptr) {
+        GuiInfo::ScreenRes.x = ctx->clientInstance->guiData->windowSize.x;
+        GuiInfo::ScreenRes.y = ctx->clientInstance->guiData->windowSize.y;
+
+        logF("[RenderUtils::SetUp] - screenWidth from guiData->windowSize: %f", ctx->clientInstance->guiData->windowSize.x);
+        logF("[RenderUtils::SetUp] - screenHeight from guiData->windowSize: %f", ctx->clientInstance->guiData->windowSize.y);
+        logF("[RenderUtils::SetUp] - GuiInfo::ScreenRes updated to: x=%f, y=%f", GuiInfo::ScreenRes.x, GuiInfo::ScreenRes.y);
+    } else {
+        logF("[RenderUtils::SetUp] - WARNING: screenView or context or clientInstance->guiData is NULL! Cannot update GuiInfo::ScreenRes.");
+        if (screenView == nullptr) logF("[RenderUtils::SetUp] - screenView is NULL");
+        if (ctx == nullptr) logF("[RenderUtils::SetUp] - ctx is NULL");
+        if (ctx != nullptr && ctx->clientInstance == nullptr) logF("[RenderUtils::SetUp] - ctx->clientInstance is NULL");
+        if (ctx != nullptr && ctx->clientInstance != nullptr && ctx->clientInstance->guiData == nullptr) logF("[RenderUtils::SetUp] - ctx->clientInstance->guiData is NULL");
+    }
 }
 
 void RenderUtils::setGameRenderContext(ScreenContext* screenContext) {
@@ -58,15 +81,69 @@ void RenderUtils::flushImage(MC_Color color, float alpha)
 	static HashedString flushString = HashedString(0xA99285D21E94FC80, "ui_flush");
 	renderCtx->flushImages(color, alpha, flushString);
 }
-void RenderUtils::renderImage(std::string filePath, Vec4<float> rectPosition, Vec2<float> uvPos, Vec2<float> uvSize, Type type)
+void RenderUtils::renderImage(std::string filePath, Vec4<float> rectPosition, Vec2<float> uvPos, Vec2<float> uvSize,Type type)
 {
 	ResourceLocation location = ResourceLocation(filePath, type);
-
-	location = ResourceLocation(filePath, type);
 	TextureData* textureData = new TextureData();
-	renderCtx->getTexture(textureData, &location);
+	bool textureLoaded = false; // Inicializar a false
 
+	// *** NUEVO CÓDIGO - Extraer imagen del recurso si el archivo no existe ***
+	std::string fullFilePath = Utils::getClientPath() + filePath;
+	std::ifstream fileTest(fullFilePath);
+	if (!fileTest.good()) { // Si el archivo NO existe
+		fileTest.close();
+		// *** MODIFICADO FindResource para usar GetModuleHandle(NULL) ***
+		HRSRC resourceInfo = FindResource(GetModuleHandle(NULL), MAKEINTRESOURCE(IDR_BACKGROUND_IMAGE), L"RCDATA"); // Buscar el recurso - USANDO GetModuleHandle(NULL)
+		if (resourceInfo) {
+			HGLOBAL resourceHandle = LoadResource(NULL, resourceInfo); // Cargar el recurso
+			if (resourceHandle) {
+				void* resourceData = LockResource(resourceHandle); // Bloquear para acceso
+				DWORD resourceSize = SizeofResource(NULL, resourceInfo); // Obtener el tamaño
+
+				if (resourceData && resourceSize > 0) {
+					std::ofstream outputFile(fullFilePath, std::ios::binary); // Abrir archivo para escritura binaria
+					if (outputFile.is_open()) {
+						outputFile.write(static_cast<const char*>(resourceData), resourceSize); // Escribir los datos del recurso al archivo
+						outputFile.close();
+						logF("[renderImage] - Image extracted from resource to: %s", fullFilePath.c_str());
+					}
+					else {
+						logF("[renderImage] - ERROR: Failed to open file for resource extraction: %s", fullFilePath.c_str());
+					}
+					UnlockResource(resourceHandle); // Desbloquear el recurso
+				}
+				else {
+					logF("[renderImage] - ERROR: Failed to load resource data.");
+				}
+				FreeResource(resourceHandle); // Liberar el recurso cargado
+			}
+			else {
+				logF("[renderImage] - ERROR: Failed to load resource handle.");
+			}
+		}
+		else {
+			logF("[renderImage] - ERROR: Resource not found: IDR_BACKGROUND_IMAGE");
+		}
+	}
+	else {
+		fileTest.close();
+	}
+	// *** FIN DEL NUEVO CÓDIGO ***
+
+	logF("[renderImage] - Starting to render image from path: %s", fullFilePath.c_str()); // Usar fullFilePath ahora
+	logF("[renderImage] - Calling renderCtx->getTexture...");
+	textureLoaded = renderCtx->getTexture(textureData, &location); // Cargar la textura DESPUÉS de la extracción (o si ya existía)
+	logF("[renderImage] - renderCtx->getTexture returned. Result: %s", textureLoaded ? "SUCCESS" : "FAILURE");
+
+	if (!textureLoaded) {
+		logF("[renderImage] - ERROR: getTexture FAILED to load texture: %s", fullFilePath.c_str()); // Usar fullFilePath aquí
+		logF("[renderImage] - Path was: %s", fullFilePath.c_str());
+		return;
+	}
+
+	logF("[renderImage] - getTexture SUCCEEDED. Calling renderCtx->drawImage...");
 	renderCtx->drawImage(textureData, Vec2<float>(rectPosition.x, rectPosition.y), Vec2<float>(rectPosition.z - rectPosition.x, rectPosition.w - rectPosition.y), uvPos, uvSize);
+	logF("[renderImage] - renderCtx->drawImage call completed.");
 }
 float RenderUtils::getTextWidth(const std::string& textStr, float textSize) {
 	TextHolder text(textStr);
