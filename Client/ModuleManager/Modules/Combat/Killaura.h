@@ -16,32 +16,34 @@ public:
 
 private:
     int getBestWeaponSlot();    // Seleciona o melhor slot com a arma mais poderosa
-    void findEntityhhD();       // Encontra entidades válidas próximas
-    void sortByDist();          // Ordena a lista de alvos pela distância ao jogador local
+    void findEntityhhD();       // Encontra entidades vÃ¡lidas prÃ³ximas
+    void sortByDist();          // Ordena a lista de alvos pela distÃ¢ncia ao jogador local
 
     std::vector<Actor*> targetListJ; // Lista de alvos
 
-    // Configurações do Killaura
-    float range = 2.0f;    
+    // ConfiguraÃ§Ãµes do Killaura
+    float range = 2.0f;
     bool visualRange = false;
     UIColor vRColor = UIColor(255, 255, 255, 255);
     bool targetVisualize = false;
-    UIColor visualizeColor = UIColor(255, 255, 255, 255);// Alcance padrão para alvos
+    UIColor visualizeColor = UIColor(255, 255, 255, 255);// Alcance padrÃ£o para alvos
     int delay = 0;                  // Intervalo de ataque em ticks
-    int multiplier = 1;             // Número de ataques por alvo
-    int thePredict = 8;             // Número de ataques por alvo
-    float smoothness = 0.1f;        // Controle da suavidade da rotação
-    float hookY = 0.1f;        // Controle da suavidade da rotação
-    float PredictSpeed = 0.1f;        // Controle da suavidade da rotação
+    int multiplier = 1;             // NÃºmero de ataques por alvo
+    int thePredict = 8;             // NÃºmero de ataques por alvo
+    float smoothness = 0.1f;        // Controle da suavidade da rotaÃ§Ã£o
+    float hookY = 0.1f;             // Controle da suavidade da rotaÃ§Ã£o
+    float PredictSpeed = 0.1f;      // Controle da suavidade da rotaÃ§Ã£o
     int hitChance = 100;            // Probabilidade de acertar (1-100)
-    int DistPredict = 20;            // Probabilidade de acertar (1-100)
-    bool randomizeHit = false;      // Aleatorização na chance de acertar
+    int DistPredict = 20;           // Probabilidade de acertar (1-100)
+    bool randomizeHit = false;      // AleatorizaÃ§Ã£o na chance de acertar
     int targetmode = 0;             // Modo de alvo (Single ou Multi)
-    int test = 0;                   // Configuração de previsão para rotação
-    bool isMulti = false;           // Habilitar ataques múltiplos por alvo
-    int switchMode = 0;             // Controle de troca automática de armas
-    bool hurttime = false;          // Verificação de tempo de invulnerabilidade
+    int test = 0;                   // ConfiguraÃ§Ã£o de previsÃ£o para rotaÃ§Ã£o
+    bool isMulti = false;           // Habilitar ataques mÃºltiplos por alvo
+    int switchMode = 0;             // Controle de troca automÃ¡tica de armas
+    bool hurttime = false;          // VerificaÃ§Ã£o de tempo de invulnerabilidade
     bool isMobAura = false;         // Habilitar ataque em mobs (MobAura)
     int Odelay = 0;                 // Contador de delay
-    int rots = 0;                   // Modo de rotação (None, Silent, Strafe, Predict)
+    int rots = 0;                   // Modo de rotaÃ§Ã£o (None, Silent, Strafe, Predict, FrontStrafe)
+    bool noSwing = false;   
+    std::string getModName();
 };
