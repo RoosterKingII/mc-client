@@ -2,7 +2,7 @@
 #include <random>
 #include "../../../Client.h"
 
-Killaura::Killaura() : Module("KillauraH", "Auto attack players around you.", Category::COMBAT) {
+Killaura::Killaura() : Module("Killaura", "Auto attack players around you.", Category::COMBAT) {
     addEnumSetting("TargetMode", "NULL", { "Single", "Multi" }, &targetmode);
     addSlider<float>("Range", "Target range", ValueType::FLOAT_T, &this->range, 2.f, 150.f);
     addSlider<float>("speed predict head", "speed of rotations of head of predict.", ValueType::FLOAT_T, &this->PredictSpeed, 0.f, 250.f);
@@ -10,19 +10,39 @@ Killaura::Killaura() : Module("KillauraH", "Auto attack players around you.", Ca
     addSlider<int>("Multiplier", "Number of attacks per target", ValueType::INT_T, &this->multiplier, 1, 10);
     addSlider<int>("Prediction test", "amount predict", ValueType::INT_T, &DistPredict, 0, 30);
     addSlider<int>("Prediction", "amount predict strafe distance", ValueType::INT_T, &test, 0, 30);
-    addEnumSetting("Rotation", "Select rotation type", { "None", "Silent", "Strafe", "Predict" }, &rots);
+    addEnumSetting("Rotation", "Select rotation type", { "None", "Silent", "Strafe", "Predict", "FrontStrafe" }, &rots);
     addEnumSetting("Switch", "NULL", { "None", "Full", "Silent" }, &switchMode);
     addBoolCheck("Hurttime", "Check hurttime", &this->hurttime);
     addSlider<int>("Hit Chance", "Chance to hit (1-100)", ValueType::INT_T, &this->hitChance, 1, 100);
     addBoolCheck("Randomize Hit", "Randomize hit", &this->randomizeHit);
     addBoolCheck("Target Visualize", "NULL", &targetVisualize);
     addColorPicker("TV Color", "NULL", &visualizeColor);
+    addBoolCheck("NoSwing", "Disable swing animation", &this->noSwing);
 }
 
 Killaura::~Killaura() {
 }
 
 static std::vector<Actor*> targetListJ;
+std::string Killaura::getModName() {
+    static char textStr[15];
+    if (rots == 0) {
+        sprintf_s(textStr, 15, "None");
+    }
+    else if (rots == 1) {
+        sprintf_s(textStr, 15, "Silent");
+    }
+    else if (rots == 2) {
+        sprintf_s(textStr, 15, "Strafe");
+    }
+	else if (rots == 3) {
+		sprintf_s(textStr, 15, "Predict");
+	}
+	else if (rots == 4) {
+		sprintf_s(textStr, 15, "FrontStrafe");
+    }
+    return std::string(textStr);
+}
 
 int Killaura::getBestWeaponSlot() {
     auto localPlayer = mc.getLocalPlayer();
@@ -50,7 +70,7 @@ int Killaura::getBestWeaponSlot() {
     return slot;
 }
 
-// Função para ordenar targetListJ pela distância ao jogador local
+// FunÃ§Ã£o para ordenar targetListJ pela distÃ¢ncia ao jogador local
 void Killaura::sortByDist() {
     auto localPlayer = mc.getLocalPlayer();
     if (!localPlayer) return;
@@ -58,7 +78,7 @@ void Killaura::sortByDist() {
     std::sort(targetListJ.begin(), targetListJ.end(), [&localPlayer](Actor* a, Actor* b) {
         float distA = a->stateVectorComponent->pos.dist(localPlayer->stateVectorComponent->pos);
         float distB = b->stateVectorComponent->pos.dist(localPlayer->stateVectorComponent->pos);
-        return distA < distB; // Ordena em ordem crescente (mais próximo primeiro)
+        return distA < distB; // Ordena em ordem crescente (mais prÃ³ximo primeiro)
         });
 }
 
@@ -78,7 +98,7 @@ void Killaura::findEntityhhD() {
         }
     }
 
-    // Chama a função para ordenar os alvos por distância
+    // Chama a funÃ§Ã£o para ordenar os alvos por distÃ¢ncia
     sortByDist();
 }
 
@@ -118,12 +138,13 @@ void Killaura::onNormalTick(Actor* actor) {
             localPlayer->rotationComponent->rotation.x = ange.x;
             localPlayer->rotationComponent->rotation.y = ange.y;
         }
-        if (rots == 3) {
+        else if (rots == 3) {
             if (DistT0 < DistPredict) {
                 Vec3 targetPosition = *targetListJ[0]->getPosition();
                 float targetYaw = targetListJ[0]->rotationComponent->rotation.y;
                 float targetYawRad = targetYaw * (M_PI / 180.0f);
 
+                // Predict ataca por detrÃ¡s (aÃ±ade offset en direcciÃ³n opuesta a la mirada)
                 targetPosition.x += test * cos(targetYawRad + 1.53f);
                 targetPosition.z += test * sin(targetYawRad + 1.53f);
 
@@ -137,8 +158,29 @@ void Killaura::onNormalTick(Actor* actor) {
                 localPlayer->rotationComponent->rotation.y = ange.y;
             }
         }
+        else if (rots == 4) { // Nuevo modo FrontStrafe
+            if (DistT0 < DistPredict) {
+                Vec3 targetPosition = *targetListJ[0]->getPosition();
+                float targetYaw = targetListJ[0]->rotationComponent->rotation.y;
+                float targetYawRad = targetYaw * (M_PI / 180.0f);
 
-        // Configuração de ataque com chance de acerto e randomização
+                // FrontStrafe ataca por delante (aÃ±ade offset en la direcciÃ³n de la mirada)
+                // Invertimos el Ã¡ngulo (quitamos el +1.53f o aÃ±adimos PI)
+                targetPosition.x += test * cos(targetYawRad - 1.53f);
+                targetPosition.z += test * sin(targetYawRad - 1.53f);
+
+                Vec2 targetAngle = mc.getLocalPlayer()->getPosition()->CalcAngle(targetPosition).normAngles();
+                localPlayer->rotationComponent->rotation.x = targetAngle.x;
+                localPlayer->rotationComponent->rotation.y = targetAngle.y + PredictSpeed;
+            }
+            else {
+                // Adjust the rotations through rotationComponent
+                localPlayer->rotationComponent->rotation.x = ange.x;
+                localPlayer->rotationComponent->rotation.y = ange.y;
+            }
+        }
+
+        // ConfiguraÃ§Ã£o de ataque com chance de acerto e randomizaÃ§Ã£o
         std::random_device rd;
         std::mt19937 gen(rd());
 
@@ -151,21 +193,18 @@ void Killaura::onNormalTick(Actor* actor) {
 
                         if (randomizeHit) {
                             if (randomHit <= hitChance) {
-                                // Criação do pacote de interação para o ataque
-
-                                // Realiza o swing e o ataque
-                                mc.getLocalPlayer()->swing();
+                                // Realiza el ataque con NoSwing
+                                if (!noSwing) mc.getLocalPlayer()->swing();
                                 mc.getGameMode()->attack(i);
-                                mc.getLocalPlayer()->swing();
+                                if (!noSwing) mc.getLocalPlayer()->swing();
                             }
                         }
                         else {
                             if (hitChance >= 100 || randomHit <= hitChance) {
-                                // Criação do pacote de interação para o ataque
-                                // Realiza o swing e o ataque
-                                mc.getLocalPlayer()->swing();
+                                // Realiza el ataque con NoSwing
+                                if (!noSwing) mc.getLocalPlayer()->swing();
                                 mc.getGameMode()->attack(i);
-                                mc.getLocalPlayer()->swing();
+                                if (!noSwing) mc.getLocalPlayer()->swing();
                             }
                         }
                     }
@@ -180,27 +219,23 @@ void Killaura::onNormalTick(Actor* actor) {
 
                     if (randomizeHit) {
                         if (randomHit <= hitChance) {
-                            // Criação do pacote de interação para o ataque
-
-                            // Realiza o swing e o ataque
-                            mc.getLocalPlayer()->swing();
+                            // Realiza el ataque con NoSwing
+                            if (!noSwing) mc.getLocalPlayer()->swing();
                             mc.getGameMode()->attack(targetListJ[0]);
-                            mc.getLocalPlayer()->swing();
+                            if (!noSwing) mc.getLocalPlayer()->swing();
                         }
                     }
                     else {
                         if (hitChance >= 100 || randomHit <= hitChance) {
-                            // Criação do pacote de interação para o ataqu
-                            // Realiza o swing e o ataque
-                            mc.getLocalPlayer()->swing();
+                            // Realiza el ataque con NoSwing
+                            if (!noSwing) mc.getLocalPlayer()->swing();
                             mc.getGameMode()->attack(targetListJ[0]);
-                            mc.getLocalPlayer()->swing();
+                            if (!noSwing) mc.getLocalPlayer()->swing();
                         }
                     }
                 }
             }
         }
-
 
         if (shouldSwitch && switchMode == 2) {
             plrInv->selectedSlot = oldSlot;
@@ -212,7 +247,7 @@ void Killaura::onNormalTick(Actor* actor) {
 
 void Killaura::onEnable() {
     if (mc.getLocalPlayer() == nullptr)
-        this->setEnabled(false);
+    this->setEnabled(false);
 }
 
 void Killaura::onDisable() {
@@ -234,6 +269,7 @@ void Killaura::onSendPacket(Packet* packet, bool& shouldcancel) {
         }
     }
 }
+
 void Killaura::onImGuiRender(ImDrawList* d) {
     if (mc.getClientInstance()->getLevelRenderer() == nullptr) return;
     if (mc.getClientInstance()->getLevelRenderer()->levelRendererPlayer == nullptr) return;
