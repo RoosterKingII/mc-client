@@ -1,5 +1,7 @@
 #include "Killaura.h"
 #include <random>
+#include <cmath>
+#include <algorithm>
 #include "../../../Client.h"
 
 Killaura::Killaura() : Module("Killaura", "Auto attack players around you.", Category::COMBAT) {
@@ -18,12 +20,12 @@ Killaura::Killaura() : Module("Killaura", "Auto attack players around you.", Cat
     addBoolCheck("Target Visualize", "NULL", &targetVisualize);
     addColorPicker("TV Color", "NULL", &visualizeColor);
     addBoolCheck("NoSwing", "Disable swing animation", &this->noSwing);
+    addBoolCheck("Auto Trident", "Switch to trident when in water", &this->autoTrident);
 }
 
 Killaura::~Killaura() {
 }
 
-static std::vector<Actor*> targetListJ;
 std::string Killaura::getModName() {
     static char textStr[15];
     if (rots == 0) {
@@ -35,11 +37,11 @@ std::string Killaura::getModName() {
     else if (rots == 2) {
         sprintf_s(textStr, 15, "Strafe");
     }
-	else if (rots == 3) {
-		sprintf_s(textStr, 15, "Predict");
-	}
-	else if (rots == 4) {
-		sprintf_s(textStr, 15, "FrontStrafe");
+    else if (rots == 3) {
+        sprintf_s(textStr, 15, "Predict");
+    }
+    else if (rots == 4) {
+        sprintf_s(textStr, 15, "FrontStrafe");
     }
     return std::string(textStr);
 }
@@ -70,7 +72,6 @@ int Killaura::getBestWeaponSlot() {
     return slot;
 }
 
-// Função para ordenar targetListJ pela distância ao jogador local
 void Killaura::sortByDist() {
     auto localPlayer = mc.getLocalPlayer();
     if (!localPlayer) return;
@@ -78,7 +79,7 @@ void Killaura::sortByDist() {
     std::sort(targetListJ.begin(), targetListJ.end(), [&localPlayer](Actor* a, Actor* b) {
         float distA = a->stateVectorComponent->pos.dist(localPlayer->stateVectorComponent->pos);
         float distB = b->stateVectorComponent->pos.dist(localPlayer->stateVectorComponent->pos);
-        return distA < distB; // Ordena em ordem crescente (mais próximo primeiro)
+        return distA < distB;
         });
 }
 
@@ -97,20 +98,76 @@ void Killaura::findEntityhhD() {
             }
         }
     }
-
-    // Chama a função para ordenar os alvos por distância
     sortByDist();
+}
+
+// Nuevo método: busca en la hotbar el slot que contenga un tridente (texture_name == "trident")
+int Killaura::getTridentSlot() {
+    auto localPlayer = mc.getLocalPlayer();
+    if (!localPlayer) return -1;
+
+    auto plrInv = localPlayer->getPlayerInventory();
+    if (!plrInv) return -1;
+
+    auto inv = plrInv->inventory;
+    if (!inv) return -1;
+
+    for (int i = 0; i < 9; i++) {
+        auto itemStack = inv->getItemStack(i);
+        if (itemStack && itemStack->isValid()) {
+            if (itemStack->getItemPtr()->texture_name == "trident")
+                return i;
+        }
+    }
+    return -1;
 }
 
 void Killaura::onNormalTick(Actor* actor) {
     auto localPlayer = mc.getLocalPlayer();
+    if (!localPlayer) return;
+
     auto plrInv = localPlayer->getPlayerInventory();
+    if (!plrInv) return;
+
     auto inv = plrInv->inventory;
+    if (!inv) return;
+
+    // Bloque de Auto Trident: si el setting está activado y se detecta agua en las cercanías, se cambia al slot del tridente.
+    if (autoTrident) {
+        bool inWater = false;
+        Vec3<float>* playerPos = localPlayer->getPosition();
+        if (playerPos) {
+            // Se itera en un cubo 3x3x3 alrededor de la posición del jugador (con offset en Y)
+            for (int x = (int)playerPos->x - 1; x <= (int)playerPos->x + 1; x++) {
+                for (int y = (int)playerPos->y - 1; y <= (int)playerPos->y + 1; y++) {
+                    for (int z = (int)playerPos->z - 1; z <= (int)playerPos->z + 1; z++) {
+                        Vec3<int> blockPos(x, y + 1, z);
+                        int blockID = localPlayer->dimension->blockSource->getBlock(blockPos)->blockLegacy->blockId;
+                        if (blockID == 8 || blockID == 9) {
+                            inWater = true;
+                            break;
+                        }
+                    }
+                    if (inWater) break;
+                }
+                if (inWater) break;
+            }
+        }
+        if (inWater) {
+            int tridentSlot = getTridentSlot();
+            if (tridentSlot != -1 && tridentSlot != plrInv->selectedSlot) {
+                plrInv->selectedSlot = tridentSlot;
+            }
+            // Se retorna sin ejecutar la lógica normal de ataque mientras se está en agua.
+            return;
+        }
+    }
+
     targetListJ.clear();
     findEntityhhD();
 
-    float DistT0 = (targetListJ.empty()) ? 0.0f : sqrt(pow(localPlayer->stateVectorComponent->pos.x - targetListJ[0]->stateVectorComponent->pos.x, 2) + pow(localPlayer->stateVectorComponent->pos.z - targetListJ[0]->stateVectorComponent->pos.z, 2));
-
+    float DistT0 = targetListJ.empty() ? 0.0f : sqrt(pow(localPlayer->stateVectorComponent->pos.x - targetListJ[0]->stateVectorComponent->pos.x, 2) +
+        pow(localPlayer->stateVectorComponent->pos.z - targetListJ[0]->stateVectorComponent->pos.z, 2));
     Odelay++;
     if (!targetListJ.empty() && Odelay >= delay) {
         int bestSlot = getBestWeaponSlot();
@@ -129,12 +186,10 @@ void Killaura::onNormalTick(Actor* actor) {
         Vec2<float> ange = mc.getLocalPlayer()->getPosition()->CalcAngle(*targetListJ[0]->getPosition()).normAngles();
 
         if (rots == 2) {
-            float distance = 10.f; // Circle radius
-            float time = ImGui::GetTime(); // Get the time
-            ange.x += sin(time * 0.1f) * distance; // Vertical rotation
-            ange.y += cos(time * 0.1f) * distance; // Horizontal rotation
-
-            // Adjust the rotations through rotationComponent
+            float distance = 10.f; // Radio para el oscilado
+            float time = ImGui::GetTime();
+            ange.x += sin(time * 0.1f) * distance;
+            ange.y += cos(time * 0.1f) * distance;
             localPlayer->rotationComponent->rotation.x = ange.x;
             localPlayer->rotationComponent->rotation.y = ange.y;
         }
@@ -144,7 +199,6 @@ void Killaura::onNormalTick(Actor* actor) {
                 float targetYaw = targetListJ[0]->rotationComponent->rotation.y;
                 float targetYawRad = targetYaw * (M_PI / 180.0f);
 
-                // Predict ataca por detrás (añade offset en dirección opuesta a la mirada)
                 targetPosition.x += test * cos(targetYawRad + 1.53f);
                 targetPosition.z += test * sin(targetYawRad + 1.53f);
 
@@ -153,19 +207,16 @@ void Killaura::onNormalTick(Actor* actor) {
                 localPlayer->rotationComponent->rotation.y = targetAngle.y + PredictSpeed;
             }
             else {
-                // Adjust the rotations through rotationComponent
                 localPlayer->rotationComponent->rotation.x = ange.x;
                 localPlayer->rotationComponent->rotation.y = ange.y;
             }
         }
-        else if (rots == 4) { // Nuevo modo FrontStrafe
+        else if (rots == 4) { // Modo FrontStrafe
             if (DistT0 < DistPredict) {
                 Vec3 targetPosition = *targetListJ[0]->getPosition();
                 float targetYaw = targetListJ[0]->rotationComponent->rotation.y;
                 float targetYawRad = targetYaw * (M_PI / 180.0f);
 
-                // FrontStrafe ataca por delante (añade offset en la dirección de la mirada)
-                // Invertimos el ángulo (quitamos el +1.53f o añadimos PI)
                 targetPosition.x += test * cos(targetYawRad - 1.53f);
                 targetPosition.z += test * sin(targetYawRad - 1.53f);
 
@@ -174,13 +225,11 @@ void Killaura::onNormalTick(Actor* actor) {
                 localPlayer->rotationComponent->rotation.y = targetAngle.y + PredictSpeed;
             }
             else {
-                // Adjust the rotations through rotationComponent
                 localPlayer->rotationComponent->rotation.x = ange.x;
                 localPlayer->rotationComponent->rotation.y = ange.y;
             }
         }
 
-        // Configuração de ataque com chance de acerto e randomização
         std::random_device rd;
         std::mt19937 gen(rd());
 
@@ -193,7 +242,6 @@ void Killaura::onNormalTick(Actor* actor) {
 
                         if (randomizeHit) {
                             if (randomHit <= hitChance) {
-                                // Realiza el ataque con NoSwing
                                 if (!noSwing) mc.getLocalPlayer()->swing();
                                 mc.getGameMode()->attack(i);
                                 if (!noSwing) mc.getLocalPlayer()->swing();
@@ -201,7 +249,6 @@ void Killaura::onNormalTick(Actor* actor) {
                         }
                         else {
                             if (hitChance >= 100 || randomHit <= hitChance) {
-                                // Realiza el ataque con NoSwing
                                 if (!noSwing) mc.getLocalPlayer()->swing();
                                 mc.getGameMode()->attack(i);
                                 if (!noSwing) mc.getLocalPlayer()->swing();
@@ -219,7 +266,6 @@ void Killaura::onNormalTick(Actor* actor) {
 
                     if (randomizeHit) {
                         if (randomHit <= hitChance) {
-                            // Realiza el ataque con NoSwing
                             if (!noSwing) mc.getLocalPlayer()->swing();
                             mc.getGameMode()->attack(targetListJ[0]);
                             if (!noSwing) mc.getLocalPlayer()->swing();
@@ -227,7 +273,6 @@ void Killaura::onNormalTick(Actor* actor) {
                     }
                     else {
                         if (hitChance >= 100 || randomHit <= hitChance) {
-                            // Realiza el ataque con NoSwing
                             if (!noSwing) mc.getLocalPlayer()->swing();
                             mc.getGameMode()->attack(targetListJ[0]);
                             if (!noSwing) mc.getLocalPlayer()->swing();
@@ -247,7 +292,7 @@ void Killaura::onNormalTick(Actor* actor) {
 
 void Killaura::onEnable() {
     if (mc.getLocalPlayer() == nullptr)
-    this->setEnabled(false);
+        this->setEnabled(false);
 }
 
 void Killaura::onDisable() {
@@ -279,7 +324,6 @@ void Killaura::onImGuiRender(ImDrawList* d) {
     ImGuiIO& io = ImGui::GetIO();
     if (targetVisualize) {
         if (!targetListJ.empty() && targetListJ[0] != nullptr) {
-
             static unsigned int anim = 0;
             anim++;
             float height = targetListJ[0]->aabbComponent->aabb.upper.y - targetListJ[0]->aabbComponent->aabb.lower.y;
@@ -293,7 +337,7 @@ void Killaura::onImGuiRender(ImDrawList* d) {
                 float calcYaw = (i + 90) * (PI / 180);
                 float x = cos(calcYaw) * 0.7f;
                 float z = sin(calcYaw) * 0.7f;
-                static Vec2<float> pointsVec2;
+                Vec2<float> pointsVec2;
                 if (ImGuiUtils::worldToScreen(tgPos.add(x, coolAnim, z), pointsVec2)) {
                     pointsList.push_back(pointsVec2);
                 }
